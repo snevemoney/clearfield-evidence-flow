@@ -14,6 +14,7 @@ import SearchPage from "./pages/SearchPage";
 import ContextNotes from "./pages/ContextNotes";
 import Unknowns from "./pages/Unknowns";
 import Auth from "./pages/Auth";
+import GlobePage from "./pages/GlobePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/search" element={<SearchPage />} />
             <Route path="/notes" element={<ContextNotes />} />
             <Route path="/unknowns" element={<Unknowns />} />
+            <Route path="/globe" element={<GlobePage />} />
           </Route>
           <Route path="/auth" element={<Auth />} />
           <Route path="*" element={<NotFound />} />

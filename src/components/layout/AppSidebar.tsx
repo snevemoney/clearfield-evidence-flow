@@ -9,6 +9,7 @@ import {
   Search,
   MessageSquare,
   HelpCircle,
+  Globe,
   LogIn,
   Shield,
 } from "lucide-react";
@@ -18,6 +19,7 @@ const navItems = [
   { path: "/claims", label: "CLAIMS", icon: FileText },
   { path: "/evidence", label: "EVIDENCE", icon: Archive },
   { path: "/graph", label: "GRAPH", icon: GitBranch },
+  { path: "/globe", label: "GLOBE", icon: Globe },
   { path: "/timeline", label: "TIMELINE", icon: Clock },
   { path: "/iceberg", label: "DEPTH VIEW", icon: Layers },
   { path: "/search", label: "SEARCH", icon: Search },
