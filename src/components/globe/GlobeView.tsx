@@ -201,31 +201,20 @@ export function GlobeView({ locations, arcs, heatmapPoints, onLocationClick, fil
             <div style="color:#94a3b8;font-size:9px">${d.description}</div>
           </div>`;
         }}
-        // Hex bin heatmap layer
-        hexBinPointsData={mergedHeatmap}
-        hexBinPointLat="lat"
-        hexBinPointLng="lng"
-        hexBinPointWeight="weight"
-        hexBinResolution={3}
-        hexAltitude={(d: any) => d.sumWeight * 0.002}
-        hexTopColor={(d: any) => {
-          const intensity = Math.min(d.sumWeight / 60, 1);
-          const h = 187 - intensity * 30;
-          const l = 30 + intensity * 40;
-          return `hsla(${h}, 90%, ${l}%, ${0.5 + intensity * 0.4})`;
-        }}
-        hexSideColor={(d: any) => {
-          const intensity = Math.min(d.sumWeight / 60, 1);
-          const h = 187 - intensity * 30;
-          const l = 20 + intensity * 25;
-          return `hsla(${h}, 80%, ${l}%, ${0.3 + intensity * 0.3})`;
-        }}
-        hexLabel={(d: any) => {
-          return `<div style="font-family:monospace;font-size:11px;background:rgba(10,15,25,0.92);border:1px solid rgba(0,229,255,0.3);padding:6px 10px;border-radius:2px;color:#e2e8f0">
-            <div style="color:#00e5ff;font-size:9px;letter-spacing:2px;margin-bottom:3px">EVIDENCE DENSITY</div>
-            <div style="font-weight:bold">${Math.round(d.sumWeight)} evidence weight</div>
-            <div style="color:#94a3b8;font-size:9px">${d.points.length} data points in region</div>
-          </div>`;
+        // Heatmap layer (flat color spectrum)
+        heatmapsData={mergedHeatmap.length > 0 ? [{ points: mergedHeatmap }] : []}
+        heatmapPointLat={(p: any) => p.lat}
+        heatmapPointLng={(p: any) => p.lng}
+        heatmapPointWeight={(p: any) => p.weight}
+        heatmapBandwidth={4}
+        heatmapBaseAltitude={0.004}
+        heatmapTopAltitude={0.004}
+        heatmapColorSaturation={1.5}
+        heatmapColorFn={(t: number) => {
+          if (t < 0.15) return `rgba(10,30,80,${t * 3})`;
+          if (t < 0.4) return `hsla(187,90%,${30 + t * 60}%,${0.4 + t})`;
+          if (t < 0.7) return `hsla(${187 - (t - 0.4) * 400},85%,${50 + t * 20}%,${0.6 + t * 0.3})`;
+          return `hsla(${20 - (t - 0.7) * 50},90%,${45 + t * 15}%,${0.8 + t * 0.2})`;
         }}
       />
     </div>
