@@ -14,7 +14,380 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      claim_evidence: {
+        Row: {
+          claim_id: string
+          created_at: string
+          evidence_id: string
+          id: string
+        }
+        Insert: {
+          claim_id: string
+          created_at?: string
+          evidence_id: string
+          id?: string
+        }
+        Update: {
+          claim_id?: string
+          created_at?: string
+          evidence_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_evidence_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_evidence_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claims: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string
+          parent_claim_id: string | null
+          status: string
+          title: string
+          topic_id: string | null
+          version: number
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string
+          parent_claim_id?: string | null
+          status?: string
+          title: string
+          topic_id?: string | null
+          version?: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string
+          parent_claim_id?: string | null
+          status?: string
+          title?: string
+          topic_id?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claims_parent_claim_id_fkey"
+            columns: ["parent_claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claims_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      context_notes: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          evidence_id: string | null
+          id: string
+          target_id: string
+          target_type: string
+          usefulness_score: number
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          evidence_id?: string | null
+          id?: string
+          target_id: string
+          target_type: string
+          usefulness_score?: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          evidence_id?: string | null
+          id?: string
+          target_id?: string
+          target_type?: string
+          usefulness_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "context_notes_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence: {
+        Row: {
+          author: string | null
+          created_at: string
+          created_by: string | null
+          credibility: string | null
+          excerpt: string | null
+          id: string
+          published_date: string | null
+          source_type: string
+          title: string
+          url: string | null
+        }
+        Insert: {
+          author?: string | null
+          created_at?: string
+          created_by?: string | null
+          credibility?: string | null
+          excerpt?: string | null
+          id?: string
+          published_date?: string | null
+          source_type?: string
+          title: string
+          url?: string | null
+        }
+        Update: {
+          author?: string | null
+          created_at?: string
+          created_by?: string | null
+          credibility?: string | null
+          excerpt?: string | null
+          id?: string
+          published_date?: string | null
+          source_type?: string
+          title?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      graph_connections: {
+        Row: {
+          created_at: string
+          description: string | null
+          edge_type: string
+          evidence_id: string | null
+          id: string
+          source_node_id: string
+          target_node_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          edge_type: string
+          evidence_id?: string | null
+          id?: string
+          source_node_id: string
+          target_node_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          edge_type?: string
+          evidence_id?: string | null
+          id?: string
+          source_node_id?: string
+          target_node_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graph_connections_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graph_connections_source_node_id_fkey"
+            columns: ["source_node_id"]
+            isOneToOne: false
+            referencedRelation: "graph_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graph_connections_target_node_id_fkey"
+            columns: ["target_node_id"]
+            isOneToOne: false
+            referencedRelation: "graph_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graph_nodes: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          label: string
+          node_type: string
+          ref_id: string | null
+          topic_id: string | null
+          x_pos: number | null
+          y_pos: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          label: string
+          node_type: string
+          ref_id?: string | null
+          topic_id?: string | null
+          x_pos?: number | null
+          y_pos?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          label?: string
+          node_type?: string
+          ref_id?: string | null
+          topic_id?: string | null
+          x_pos?: number | null
+          y_pos?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graph_nodes_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          handle: string
+          id: string
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          handle: string
+          id?: string
+          role?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          handle?: string
+          id?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      timeline_events: {
+        Row: {
+          branch: string | null
+          created_at: string
+          description: string | null
+          event_date: string
+          event_type: string
+          evidence_id: string | null
+          id: string
+          title: string
+          topic_id: string | null
+        }
+        Insert: {
+          branch?: string | null
+          created_at?: string
+          description?: string | null
+          event_date: string
+          event_type?: string
+          evidence_id?: string | null
+          id?: string
+          title: string
+          topic_id?: string | null
+        }
+        Update: {
+          branch?: string | null
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          event_type?: string
+          evidence_id?: string | null
+          id?: string
+          title?: string
+          topic_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_events_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timeline_events_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topics: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          depth_score: number | null
+          description: string | null
+          id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          depth_score?: number | null
+          description?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          depth_score?: number | null
+          description?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
