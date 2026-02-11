@@ -12,7 +12,6 @@ import {
   Globe,
   Orbit,
   Rabbit,
-  Brain,
   LogIn,
   Shield,
 } from "lucide-react";
@@ -30,7 +29,6 @@ const navItems = [
   { path: "/search", label: "SEARCH", icon: Search },
   { path: "/notes", label: "CONTEXT NOTES", icon: MessageSquare },
   { path: "/unknowns", label: "UNKNOWNS", icon: HelpCircle },
-  { path: "/intelligence", label: "INTEL HUB", icon: Brain },
 ];
 
 export function AppSidebar() {

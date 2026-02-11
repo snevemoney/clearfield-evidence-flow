@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Globe as GlobeIcon, Filter, X } from "lucide-react";
 import { GlobeView } from "@/components/globe/GlobeView";
@@ -6,6 +6,7 @@ import { LocationDetailPanel } from "@/components/globe/LocationDetailPanel";
 import { GlobeQueryBar } from "@/components/globe/GlobeQueryBar";
 import { QueryResultPanel, type AiQueryResult } from "@/components/globe/QueryResultPanel";
 import { demoGlobeLocations, demoGlobeArcs, demoHeatmapPoints, CATEGORY_COLORS, ARC_NETWORKS, type GlobeLocation } from "@/lib/demo-globe-data";
+import { useIntelEntries } from "@/hooks/use-intel-data";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -29,6 +30,40 @@ const GlobePage = () => {
   const [queryResult, setQueryResult] = useState<AiQueryResult | null>(null);
   const [cameraTarget, setCameraTarget] = useState<{ lat: number; lng: number; altitude: number } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Live intel data
+  const { data: intelEntries = [] } = useIntelEntries();
+
+  // Intel entries with location → merge into globe
+  const intelLocations = useMemo(() => {
+    return intelEntries
+      .filter((e) => e.lat != null && e.lng != null)
+      .map((e, i) => ({
+        id: `intel-${e.id}`,
+        label: e.title,
+        lat: e.lat!,
+        lng: e.lng!,
+        category: (e.category === "person" ? "institution" : e.category === "claim" ? "document" : e.category) as GlobeLocation["category"],
+        description: e.description || e.ai_summary || e.title,
+        sourceCount: e.credibility_score || 1,
+        evidenceIds: [],
+        color: e.fact_check_status === "verified" ? "#22c55e" : e.fact_check_status === "disputed" ? "#eab308" : "#64748b",
+        size: 0.9,
+      }));
+  }, [intelEntries]);
+
+  const intelHeatmapPoints = useMemo(() => {
+    return intelEntries
+      .filter((e) => e.lat != null && e.lng != null)
+      .map((e) => ({
+        lat: e.lat!,
+        lng: e.lng!,
+        weight: Math.max(3, (e.credibility_score || 50) / 10),
+      }));
+  }, [intelEntries]);
+
+  const allLocations = useMemo(() => [...demoGlobeLocations, ...intelLocations], [intelLocations]);
+  const allHeatmapPoints = useMemo(() => [...demoHeatmapPoints, ...intelHeatmapPoints], [intelHeatmapPoints]);
 
   // Auto-query from URL param
   useEffect(() => {
@@ -101,6 +136,9 @@ const GlobePage = () => {
     setCameraTarget({ lat, lng, altitude: 1.2 });
   }, []);
 
+  const totalLocations = allLocations.length;
+  const totalArcs = demoGlobeArcs.length;
+
   return (
     <div className="h-screen flex flex-col grid-bg">
       {/* Header */}
@@ -113,7 +151,10 @@ const GlobePage = () => {
           </span>
         </div>
         <div className="font-mono text-[10px] text-muted-foreground">
-          {demoGlobeLocations.length} LOCATIONS // {demoGlobeArcs.length} CONNECTIONS
+          {totalLocations} LOCATIONS // {totalArcs} CONNECTIONS
+          {intelLocations.length > 0 && (
+            <span className="text-emerald-400 ml-2">+{intelLocations.length} LIVE</span>
+          )}
         </div>
       </div>
 
@@ -199,9 +240,9 @@ const GlobePage = () => {
       {/* Globe canvas */}
       <div className="flex-1 relative overflow-hidden">
         <GlobeView
-          locations={demoGlobeLocations}
+          locations={allLocations}
           arcs={demoGlobeArcs}
-          heatmapPoints={demoHeatmapPoints}
+          heatmapPoints={allHeatmapPoints}
           onLocationClick={setSelectedLocation}
           filter={filter}
           arcFilter={arcFilter}
