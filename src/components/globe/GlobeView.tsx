@@ -1,17 +1,19 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import Globe, { GlobeMethods } from "react-globe.gl";
 import { feature } from "topojson-client";
-import { type GlobeLocation, CATEGORY_COLORS } from "@/lib/demo-globe-data";
+import { type GlobeLocation, type GlobeArc, CATEGORY_COLORS } from "@/lib/demo-globe-data";
 
 interface GlobeViewProps {
   locations: GlobeLocation[];
+  arcs: GlobeArc[];
   onLocationClick: (location: GlobeLocation) => void;
   filter: string[];
+  arcFilter: string[];
 }
 
 const GEOJSON_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-export function GlobeView({ locations, onLocationClick, filter }: GlobeViewProps) {
+export function GlobeView({ locations, arcs, onLocationClick, filter, arcFilter }: GlobeViewProps) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -58,6 +60,14 @@ export function GlobeView({ locations, onLocationClick, filter }: GlobeViewProps
         ? locations
         : locations.filter((l) => filter.includes(l.category)),
     [locations, filter]
+  );
+
+  const filteredArcs = useMemo(
+    () =>
+      arcFilter.length === 0
+        ? arcs
+        : arcs.filter((a) => arcFilter.includes(a.network)),
+    [arcs, arcFilter]
   );
 
   const handlePointClick = useCallback(
@@ -108,6 +118,26 @@ export function GlobeView({ locations, onLocationClick, filter }: GlobeViewProps
           </div>`;
         }}
         onPointClick={handlePointClick}
+        // Arcs layer
+        arcsData={filteredArcs}
+        arcStartLat="startLat"
+        arcStartLng="startLng"
+        arcEndLat="endLat"
+        arcEndLng="endLng"
+        arcColor="color"
+        arcDashLength={0.4}
+        arcDashGap={0.2}
+        arcDashAnimateTime={2000}
+        arcStroke={0.5}
+        arcAltitudeAutoScale={0.3}
+        arcLabel={(d: any) => {
+          const arc = d as GlobeArc;
+          return `<div style="font-family:monospace;font-size:11px;background:rgba(10,15,25,0.92);border:1px solid rgba(0,229,255,0.3);padding:6px 10px;border-radius:2px;color:#e2e8f0;max-width:240px">
+            <div style="color:${arc.color[0]};font-size:9px;letter-spacing:2px;margin-bottom:3px">${arc.network.toUpperCase().replace("_"," ")}</div>
+            <div style="font-weight:bold;margin-bottom:2px">${arc.label}</div>
+            <div style="color:#94a3b8;font-size:9px">${arc.description}</div>
+          </div>`;
+        }}
       />
     </div>
   );
