@@ -3,7 +3,16 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
+import Claims from "./pages/Claims";
+import Evidence from "./pages/Evidence";
+import Graph from "./pages/Graph";
+import Timeline from "./pages/Timeline";
+import SearchPage from "./pages/SearchPage";
+import ContextNotes from "./pages/ContextNotes";
+import Unknowns from "./pages/Unknowns";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -15,8 +24,17 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<Index />} />
+            <Route path="/claims" element={<Claims />} />
+            <Route path="/evidence" element={<Evidence />} />
+            <Route path="/graph" element={<Graph />} />
+            <Route path="/timeline" element={<Timeline />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/notes" element={<ContextNotes />} />
+            <Route path="/unknowns" element={<Unknowns />} />
+          </Route>
+          <Route path="/auth" element={<Auth />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
