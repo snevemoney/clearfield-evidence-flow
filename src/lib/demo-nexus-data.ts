@@ -279,6 +279,11 @@ const universes: Record<string, TopicUniverse> = {
   },
 };
 
+// Allow dynamic universes to be added at runtime (e.g., from DB intel data)
+export function addDynamicUniverse(id: string, universe: TopicUniverse) {
+  universes[id] = universe;
+}
+
 export function getTopicUniverse(topicId: string): TopicUniverse {
   return universes[topicId] || universes["surveillance"];
 }

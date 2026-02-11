@@ -1,16 +1,80 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Orbit, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { RadialVisualization } from "@/components/nexus/RadialVisualization";
 import { NexusDetailPanel } from "@/components/nexus/NexusDetailPanel";
-import { getTopicUniverse, getAllTopicIds, getTopicLabel, RING_COLORS, RING_LABELS, type NexusNode } from "@/lib/demo-nexus-data";
+import { getTopicUniverse, getAllTopicIds, getTopicLabel, RING_COLORS, RING_LABELS, type NexusNode, type TopicUniverse, addDynamicUniverse } from "@/lib/demo-nexus-data";
+import { useIntelEntries } from "@/hooks/use-intel-data";
 
 const NexusPage = () => {
   const [currentTopic, setCurrentTopic] = useState("surveillance");
   const [history, setHistory] = useState<string[]>([]);
   const [selectedNode, setSelectedNode] = useState<NexusNode | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { data: intelEntries = [] } = useIntelEntries();
+
+  // Build dynamic "Epstein Network" universe from intel entries tagged with "epstein"
+  useMemo(() => {
+    const epsteinEntries = intelEntries.filter(
+      (e) => e.tags?.some((t) => t.toLowerCase().includes("epstein")) ||
+             e.title.toLowerCase().includes("epstein") ||
+             e.related_entities?.some((r) => r.toLowerCase().includes("epstein"))
+    );
+
+    if (epsteinEntries.length === 0) return;
+
+    const persons = epsteinEntries.filter((e) => e.category === "person");
+    const events = epsteinEntries.filter((e) => e.category === "event");
+    const docs = epsteinEntries.filter((e) => ["document", "claim"].includes(e.category));
+    const rest = epsteinEntries.filter((e) => !["person", "event", "document", "claim"].includes(e.category));
+
+    const universe: TopicUniverse = {
+      center: {
+        id: "epstein-network",
+        label: "Epstein Network",
+        type: "topic",
+        ring: 0,
+        description: "Intelligence-sourced connections and evidence related to the Jeffrey Epstein case. Auto-populated from live intel data.",
+        sourceCount: epsteinEntries.length,
+        color: RING_COLORS[0],
+      },
+      rings: [
+        // Ring 1: Evidence / Documents
+        docs.slice(0, 6).map((e, i) => ({
+          id: `epstein-doc-${i}`,
+          label: e.title.length > 20 ? e.title.slice(0, 20) + "…" : e.title,
+          type: "evidence" as const,
+          ring: 1 as const,
+          description: e.description || e.title,
+          sourceCount: e.credibility_score ? Math.round(e.credibility_score / 10) : 1,
+          color: RING_COLORS[1],
+        })),
+        // Ring 2: Events / Claims
+        [...events, ...rest].slice(0, 6).map((e, i) => ({
+          id: `epstein-event-${i}`,
+          label: e.title.length > 20 ? e.title.slice(0, 20) + "…" : e.title,
+          type: "claim" as const,
+          ring: 2 as const,
+          description: e.description || e.title,
+          sourceCount: e.credibility_score ? Math.round(e.credibility_score / 10) : 1,
+          color: RING_COLORS[2],
+        })),
+        // Ring 3: Persons / Connections
+        persons.slice(0, 8).map((e, i) => ({
+          id: `epstein-person-${i}`,
+          label: e.title.length > 20 ? e.title.slice(0, 20) + "…" : e.title,
+          type: "connection" as const,
+          ring: 3 as const,
+          description: e.description || e.title,
+          sourceCount: e.credibility_score ? Math.round(e.credibility_score / 10) : 1,
+          color: RING_COLORS[3],
+        })),
+      ],
+    };
+
+    addDynamicUniverse("epstein-network", universe);
+  }, [intelEntries]);
 
   // Auto-navigate from URL param
   useEffect(() => {

@@ -1,14 +1,31 @@
 import { motion } from "framer-motion";
-import { Shield, FileText, Archive, HelpCircle, Activity, AlertTriangle, Eye } from "lucide-react";
-
-const stats = [
-  { label: "ACTIVE CLAIMS", value: "0", icon: FileText, color: "text-primary" },
-  { label: "EVIDENCE OBJECTS", value: "0", icon: Archive, color: "text-success" },
-  { label: "OPEN QUESTIONS", value: "0", icon: HelpCircle, color: "text-accent" },
-  { label: "CONTEXT NOTES", value: "0", icon: Activity, color: "text-muted-foreground" },
-];
+import { Shield, FileText, Archive, HelpCircle, Activity, AlertTriangle, Eye, Users, CheckCircle, AlertOctagon, CircleDot } from "lucide-react";
+import { useIntelStats } from "@/hooks/use-intel-data";
 
 const Index = () => {
+  const { stats, entries, isLoading } = useIntelStats();
+
+  const statCards = [
+    { label: "ACTIVE CLAIMS", value: String(stats.claims), icon: FileText, color: "text-primary" },
+    { label: "EVIDENCE OBJECTS", value: String(stats.evidence), icon: Archive, color: "text-success" },
+    { label: "PERSONS TRACKED", value: String(stats.persons), icon: Users, color: "text-accent" },
+    { label: "TOTAL INTEL", value: String(stats.totalEntries), icon: Activity, color: "text-muted-foreground" },
+  ];
+
+  const recentFeed = entries.slice(0, 8);
+
+  const statusColor: Record<string, string> = {
+    verified: "text-emerald-400 border-emerald-500/40 bg-emerald-500/10",
+    disputed: "text-amber-400 border-amber-500/40 bg-amber-500/10",
+    unverified: "text-slate-400 border-slate-500/40 bg-slate-500/10",
+  };
+
+  const statusIcon: Record<string, typeof CheckCircle> = {
+    verified: CheckCircle,
+    disputed: AlertOctagon,
+    unverified: CircleDot,
+  };
+
   return (
     <div className="min-h-screen p-6 grid-bg">
       {/* Header */}
@@ -37,7 +54,7 @@ const Index = () => {
         transition={{ delay: 0.2, duration: 0.5 }}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
       >
-        {stats.map((stat, i) => (
+        {statCards.map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
@@ -52,7 +69,7 @@ const Index = () => {
               </span>
             </div>
             <div className={`font-mono text-3xl font-bold ${stat.color}`}>
-              {stat.value}
+              {isLoading ? "—" : stat.value}
             </div>
           </motion.div>
         ))}
@@ -72,15 +89,47 @@ const Index = () => {
             <h2 className="font-mono text-xs tracking-widest text-primary">LIVE FEED</h2>
             <div className="ml-auto h-2 w-2 rounded-full bg-primary animate-pulse-glow" />
           </div>
-          <div className="p-6 flex flex-col items-center justify-center min-h-[300px] text-center">
-            <Eye className="h-10 w-10 text-muted-foreground/30 mb-4" />
-            <p className="font-mono text-xs text-muted-foreground tracking-wider">
-              NO ACTIVITY RECORDED
-            </p>
-            <p className="font-mono text-[10px] text-muted-foreground/50 mt-1 tracking-wider">
-              Submit claims and evidence to populate the feed
-            </p>
-          </div>
+          {recentFeed.length === 0 ? (
+            <div className="p-6 flex flex-col items-center justify-center min-h-[300px] text-center">
+              <Eye className="h-10 w-10 text-muted-foreground/30 mb-4" />
+              <p className="font-mono text-xs text-muted-foreground tracking-wider">
+                {isLoading ? "LOADING INTEL..." : "NO ACTIVITY RECORDED"}
+              </p>
+              <p className="font-mono text-[10px] text-muted-foreground/50 mt-1 tracking-wider">
+                Submit claims and evidence to populate the feed
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {recentFeed.map((entry) => {
+                const StatusIcon = statusIcon[entry.fact_check_status] || CircleDot;
+                return (
+                  <div key={entry.id} className="px-4 py-3 hover:bg-secondary/30 transition-all">
+                    <div className="flex items-start gap-3">
+                      <StatusIcon className={`h-4 w-4 mt-0.5 shrink-0 ${statusColor[entry.fact_check_status]?.split(" ")[0] || "text-slate-400"}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`font-mono text-[8px] tracking-widest px-1.5 py-0.5 rounded-sm border ${statusColor[entry.fact_check_status] || "text-slate-400 border-slate-500/40"}`}>
+                            {entry.fact_check_status.toUpperCase()}
+                          </span>
+                          <span className="font-mono text-[8px] text-muted-foreground/60 tracking-wider">
+                            {entry.category.toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="font-mono text-[11px] text-foreground truncate">{entry.title}</p>
+                        {entry.description && (
+                          <p className="font-mono text-[10px] text-muted-foreground mt-0.5 truncate">{entry.description}</p>
+                        )}
+                      </div>
+                      <span className="font-mono text-[8px] text-muted-foreground/50 shrink-0">
+                        {new Date(entry.ingested_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </motion.div>
 
         {/* What We Don't Know Panel */}
@@ -97,18 +146,25 @@ const Index = () => {
             </h2>
           </div>
           <div className="p-4 space-y-3">
-            {["KNOWN FACTS", "DISPUTED CLAIMS", "UNKNOWNS", "MISSING DOCUMENTS", "REDACTIONS", "OPEN QUESTIONS"].map(
-              (section) => (
-                <div key={section} className="border border-border rounded-sm p-3 bg-secondary/30">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] tracking-widest text-muted-foreground">
-                      {section}
-                    </span>
-                    <span className="font-mono text-[10px] text-accent">0</span>
-                  </div>
+            {[
+              { label: "VERIFIED FACTS", value: stats.verified, color: "text-emerald-400" },
+              { label: "DISPUTED CLAIMS", value: stats.disputed, color: "text-amber-400" },
+              { label: "UNVERIFIED", value: stats.unverified, color: "text-slate-400" },
+              { label: "GEO-LOCATED", value: stats.withLocation, color: "text-primary" },
+              { label: "DATED ENTRIES", value: stats.withDate, color: "text-accent" },
+              { label: "TOTAL INTEL", value: stats.totalEntries, color: "text-muted-foreground" },
+            ].map((section) => (
+              <div key={section.label} className="border border-border rounded-sm p-3 bg-secondary/30">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] tracking-widest text-muted-foreground">
+                    {section.label}
+                  </span>
+                  <span className={`font-mono text-[10px] ${section.color}`}>
+                    {isLoading ? "—" : section.value}
+                  </span>
                 </div>
-              )
-            )}
+              </div>
+            ))}
             <p className="font-mono text-[10px] text-muted-foreground/50 text-center tracking-wider mt-4">
               This panel is mandatory on every topic.
               <br />

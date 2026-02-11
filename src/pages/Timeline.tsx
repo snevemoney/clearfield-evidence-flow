@@ -1,22 +1,42 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, ZoomIn, ZoomOut, X, FileText, Eye } from "lucide-react";
 import { timelineData, type TimelineEvent } from "@/lib/demo-graph-data";
+import { useIntelEntries } from "@/hooks/use-intel-data";
 
 const typeStyles: Record<string, { color: string; bg: string; border: string }> = {
   verified: { color: "text-emerald-400", bg: "bg-emerald-500", border: "border-emerald-500/40" },
   disputed: { color: "text-amber-400", bg: "bg-amber-500", border: "border-amber-500/40" },
   unknown: { color: "text-slate-500", bg: "bg-slate-500", border: "border-slate-500/40" },
   redacted: { color: "text-red-500", bg: "bg-red-500", border: "border-red-500/40" },
+  unverified: { color: "text-slate-500", bg: "bg-slate-500", border: "border-slate-500/40" },
 };
 
 const Timeline = () => {
   const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState<TimelineEvent | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { data: intelEntries = [] } = useIntelEntries();
 
-  const mainEvents = timelineData.filter((e) => e.branch === "main").sort((a, b) => a.date.localeCompare(b.date));
-  const shadowEvents = timelineData.filter((e) => e.branch === "shadow").sort((a, b) => a.date.localeCompare(b.date));
+  // Convert intel entries with dates into timeline events
+  const intelTimelineEvents: TimelineEvent[] = useMemo(() => {
+    return intelEntries
+      .filter((e) => e.published_at)
+      .map((e) => ({
+        id: `intel-${e.id}`,
+        title: e.title,
+        date: e.published_at!.slice(0, 7), // YYYY-MM format
+        type: (e.fact_check_status === "verified" ? "verified" : e.fact_check_status === "disputed" ? "disputed" : "unknown") as TimelineEvent["type"],
+        branch: "main",
+        evidenceCount: e.credibility_score ? Math.round(e.credibility_score / 10) : 0,
+        description: e.description || e.ai_summary || e.title,
+      }));
+  }, [intelEntries]);
+
+  const allEvents = useMemo(() => [...timelineData, ...intelTimelineEvents], [intelTimelineEvents]);
+
+  const mainEvents = allEvents.filter((e) => e.branch === "main").sort((a, b) => a.date.localeCompare(b.date));
+  const shadowEvents = allEvents.filter((e) => e.branch === "shadow").sort((a, b) => a.date.localeCompare(b.date));
 
   const eventWidth = 180 * zoom;
   const totalWidth = Math.max(mainEvents.length * eventWidth + 200, 1200);
@@ -31,11 +51,16 @@ const Timeline = () => {
           <span className="font-mono text-[10px] text-muted-foreground ml-2">
             // FLOWING NARRATIVE STREAMS
           </span>
+          {intelTimelineEvents.length > 0 && (
+            <span className="font-mono text-[10px] text-emerald-400 ml-2">
+              +{intelTimelineEvents.length} LIVE
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
           {/* Legend */}
-          {Object.entries(typeStyles).map(([type, style]) => (
+          {Object.entries(typeStyles).filter(([k]) => k !== "unverified").map(([type, style]) => (
             <div key={type} className="flex items-center gap-1 mr-2">
               <div className={`h-2 w-2 rounded-full ${style.bg}`} />
               <span className="font-mono text-[8px] text-muted-foreground tracking-wider">{type.toUpperCase()}</span>
@@ -74,9 +99,10 @@ const Timeline = () => {
 
           {/* Main stream events */}
           {mainEvents.map((event, i) => {
-            const style = typeStyles[event.type];
+            const style = typeStyles[event.type] || typeStyles.unknown;
             const xPos = 80 + i * eventWidth;
             const isRedacted = event.type === "redacted";
+            const isIntel = event.id.startsWith("intel-");
 
             return (
               <motion.div
@@ -97,7 +123,7 @@ const Timeline = () => {
                   onClick={() => setSelected(event)}
                   className={`border ${style.border} rounded-sm p-3 bg-card/60 hover:bg-card/90 transition-all text-left ${
                     isRedacted ? "border-dashed" : ""
-                  }`}
+                  } ${isIntel ? "border-l-2 border-l-emerald-500/60" : ""}`}
                   style={{ width: eventWidth - 20 }}
                 >
                   <div className="flex items-center gap-1.5 mb-1.5">
@@ -105,6 +131,9 @@ const Timeline = () => {
                     <span className={`font-mono text-[8px] tracking-widest ${style.color}`}>
                       {event.type.toUpperCase()}
                     </span>
+                    {isIntel && (
+                      <span className="font-mono text-[7px] tracking-widest text-emerald-400 ml-auto">LIVE</span>
+                    )}
                   </div>
                   <p className={`font-mono text-[10px] ${isRedacted ? "text-red-500/60" : "text-foreground"} leading-tight`}>
                     {event.title}
@@ -128,7 +157,7 @@ const Timeline = () => {
 
           {/* Shadow branch events */}
           {shadowEvents.map((event, i) => {
-            const style = typeStyles[event.type];
+            const style = typeStyles[event.type] || typeStyles.unknown;
             const dateIndex = mainEvents.findIndex((m) => m.date >= event.date);
             const xPos = 80 + (dateIndex >= 0 ? dateIndex : mainEvents.length - 1) * eventWidth + eventWidth / 3;
 
@@ -184,8 +213,8 @@ const Timeline = () => {
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className={`h-2 w-2 rounded-full ${typeStyles[selected.type].bg}`} />
-                  <span className={`font-mono text-[10px] tracking-widest ${typeStyles[selected.type].color}`}>
+                  <div className={`h-2 w-2 rounded-full ${(typeStyles[selected.type] || typeStyles.unknown).bg}`} />
+                  <span className={`font-mono text-[10px] tracking-widest ${(typeStyles[selected.type] || typeStyles.unknown).color}`}>
                     {selected.type.toUpperCase()} // {selected.date}
                   </span>
                 </div>
