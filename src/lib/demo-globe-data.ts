@@ -287,3 +287,46 @@ export const demoGlobeArcs: GlobeArc[] = [
   { id: "arc-13", startLat: loc("loc-12").lat, startLng: loc("loc-12").lng, endLat: loc("loc-3").lat, endLng: loc("loc-3").lng, color: ["#ef4444", "#22c55e"], label: "Shenzhen ↔ Pentagon", network: "intelligence", description: "Supply chain security investigations. Pentagon reports on Chinese tech component risks." },
   { id: "arc-14", startLat: loc("loc-10").lat, startLng: loc("loc-10").lng, endLat: loc("loc-13").lat, endLng: loc("loc-13").lng, color: ["#00e5ff", "#a78bfa"], label: "DARPA ↔ CERN", network: "policy", description: "Historical ARPANET collaboration. Foundational internet protocol development." },
 ];
+
+// Heatmap hex bin data — evidence density points
+// Multiple points near clusters create brighter hex bins
+export interface HeatmapPoint {
+  lat: number;
+  lng: number;
+  weight: number;
+}
+
+export const demoHeatmapPoints: HeatmapPoint[] = [
+  // DC / Virginia cluster (very dense)
+  { lat: 38.9, lng: -77.0, weight: 25 },
+  { lat: 38.85, lng: -77.1, weight: 20 },
+  { lat: 39.0, lng: -76.8, weight: 14 },
+  { lat: 38.95, lng: -77.05, weight: 18 },
+  { lat: 38.88, lng: -76.95, weight: 10 },
+  // Silicon Valley cluster
+  { lat: 37.4, lng: -122.1, weight: 12 },
+  { lat: 37.5, lng: -122.15, weight: 9 },
+  { lat: 37.35, lng: -122.0, weight: 7 },
+  // London / Cheltenham
+  { lat: 51.5, lng: -0.1, weight: 11 },
+  { lat: 51.9, lng: -2.1, weight: 8 },
+  { lat: 51.6, lng: -0.5, weight: 5 },
+  // Moscow
+  { lat: 55.75, lng: 37.6, weight: 15 },
+  { lat: 55.8, lng: 37.5, weight: 6 },
+  // New York
+  { lat: 40.75, lng: -74.0, weight: 8 },
+  { lat: 40.7, lng: -73.95, weight: 5 },
+  // Shenzhen
+  { lat: 22.55, lng: 114.05, weight: 9 },
+  { lat: 22.5, lng: 114.1, weight: 6 },
+  // Geneva / Davos
+  { lat: 46.2, lng: 6.1, weight: 5 },
+  { lat: 46.8, lng: 9.8, weight: 6 },
+  // Strasbourg
+  { lat: 48.6, lng: 7.8, weight: 7 },
+  // Pine Gap
+  { lat: -23.8, lng: 133.7, weight: 6 },
+  // Northern California (Bohemian Grove)
+  { lat: 38.5, lng: -123.0, weight: 4 },
+];

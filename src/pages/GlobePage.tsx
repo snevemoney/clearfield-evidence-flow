@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Globe as GlobeIcon, Filter } from "lucide-react";
 import { GlobeView } from "@/components/globe/GlobeView";
 import { LocationDetailPanel } from "@/components/globe/LocationDetailPanel";
-import { demoGlobeLocations, demoGlobeArcs, CATEGORY_COLORS, ARC_NETWORKS, type GlobeLocation } from "@/lib/demo-globe-data";
+import { demoGlobeLocations, demoGlobeArcs, demoHeatmapPoints, CATEGORY_COLORS, ARC_NETWORKS, type GlobeLocation } from "@/lib/demo-globe-data";
 
 const categories = [
   { key: "institution", label: "INSTITUTIONS" },
@@ -17,6 +17,7 @@ const GlobePage = () => {
   const [selectedLocation, setSelectedLocation] = useState<GlobeLocation | null>(null);
   const [filter, setFilter] = useState<string[]>([]);
   const [arcFilter, setArcFilter] = useState<string[]>([]);
+  const [showHeatmap, setShowHeatmap] = useState(true);
 
   const toggleFilter = (cat: string) => {
     setFilter((prev) =>
@@ -94,6 +95,22 @@ const GlobePage = () => {
             </button>
           );
         })}
+
+        <div className="h-4 w-px bg-border mx-1" />
+        <button
+          onClick={() => setShowHeatmap((v) => !v)}
+          className={`flex items-center gap-1 px-2 py-0.5 rounded-sm font-mono text-[9px] tracking-wider border transition-all ${
+            showHeatmap
+              ? "border-border text-foreground"
+              : "border-transparent text-muted-foreground/40"
+          }`}
+        >
+          <div
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ backgroundColor: showHeatmap ? "#00e5ff" : "#334155" }}
+          />
+          HEATMAP
+        </button>
       </div>
 
       {/* Globe canvas */}
@@ -101,9 +118,11 @@ const GlobePage = () => {
         <GlobeView
           locations={demoGlobeLocations}
           arcs={demoGlobeArcs}
+          heatmapPoints={demoHeatmapPoints}
           onLocationClick={setSelectedLocation}
           filter={filter}
           arcFilter={arcFilter}
+          showHeatmap={showHeatmap}
         />
 
         {/* Detail panel */}
