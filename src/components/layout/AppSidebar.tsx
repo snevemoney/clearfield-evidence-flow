@@ -10,6 +10,7 @@ import {
   MessageSquare,
   HelpCircle,
   Globe,
+  Orbit,
   LogIn,
   Shield,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const navItems = [
   { path: "/evidence", label: "EVIDENCE", icon: Archive },
   { path: "/graph", label: "GRAPH", icon: GitBranch },
   { path: "/globe", label: "GLOBE", icon: Globe },
+  { path: "/nexus", label: "THE NEXUS", icon: Orbit },
   { path: "/timeline", label: "TIMELINE", icon: Clock },
   { path: "/iceberg", label: "DEPTH VIEW", icon: Layers },
   { path: "/search", label: "SEARCH", icon: Search },
