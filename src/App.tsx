@@ -9,6 +9,7 @@ import Claims from "./pages/Claims";
 import Evidence from "./pages/Evidence";
 import Graph from "./pages/Graph";
 import Timeline from "./pages/Timeline";
+import IcebergExplorer from "./pages/IcebergExplorer";
 import SearchPage from "./pages/SearchPage";
 import ContextNotes from "./pages/ContextNotes";
 import Unknowns from "./pages/Unknowns";
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/evidence" element={<Evidence />} />
             <Route path="/graph" element={<Graph />} />
             <Route path="/timeline" element={<Timeline />} />
+            <Route path="/iceberg" element={<IcebergExplorer />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/notes" element={<ContextNotes />} />
             <Route path="/unknowns" element={<Unknowns />} />
