@@ -1,19 +1,21 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import Globe, { GlobeMethods } from "react-globe.gl";
 import { feature } from "topojson-client";
-import { type GlobeLocation, type GlobeArc, CATEGORY_COLORS } from "@/lib/demo-globe-data";
+import { type GlobeLocation, type GlobeArc, type HeatmapPoint, CATEGORY_COLORS } from "@/lib/demo-globe-data";
 
 interface GlobeViewProps {
   locations: GlobeLocation[];
   arcs: GlobeArc[];
+  heatmapPoints: HeatmapPoint[];
   onLocationClick: (location: GlobeLocation) => void;
   filter: string[];
   arcFilter: string[];
+  showHeatmap: boolean;
 }
 
 const GEOJSON_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-export function GlobeView({ locations, arcs, onLocationClick, filter, arcFilter }: GlobeViewProps) {
+export function GlobeView({ locations, arcs, heatmapPoints, onLocationClick, filter, arcFilter, showHeatmap }: GlobeViewProps) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -136,6 +138,32 @@ export function GlobeView({ locations, arcs, onLocationClick, filter, arcFilter 
             <div style="color:${arc.color[0]};font-size:9px;letter-spacing:2px;margin-bottom:3px">${arc.network.toUpperCase().replace("_"," ")}</div>
             <div style="font-weight:bold;margin-bottom:2px">${arc.label}</div>
             <div style="color:#94a3b8;font-size:9px">${arc.description}</div>
+          </div>`;
+        }}
+        // Hex bin heatmap layer
+        hexBinPointsData={showHeatmap ? heatmapPoints : []}
+        hexBinPointLat="lat"
+        hexBinPointLng="lng"
+        hexBinPointWeight="weight"
+        hexBinResolution={3}
+        hexAltitude={(d: any) => d.sumWeight * 0.002}
+        hexTopColor={(d: any) => {
+          const intensity = Math.min(d.sumWeight / 60, 1);
+          const h = 187 - intensity * 30;
+          const l = 30 + intensity * 40;
+          return `hsla(${h}, 90%, ${l}%, ${0.5 + intensity * 0.4})`;
+        }}
+        hexSideColor={(d: any) => {
+          const intensity = Math.min(d.sumWeight / 60, 1);
+          const h = 187 - intensity * 30;
+          const l = 20 + intensity * 25;
+          return `hsla(${h}, 80%, ${l}%, ${0.3 + intensity * 0.3})`;
+        }}
+        hexLabel={(d: any) => {
+          return `<div style="font-family:monospace;font-size:11px;background:rgba(10,15,25,0.92);border:1px solid rgba(0,229,255,0.3);padding:6px 10px;border-radius:2px;color:#e2e8f0">
+            <div style="color:#00e5ff;font-size:9px;letter-spacing:2px;margin-bottom:3px">EVIDENCE DENSITY</div>
+            <div style="font-weight:bold">${Math.round(d.sumWeight)} evidence weight</div>
+            <div style="color:#94a3b8;font-size:9px">${d.points.length} data points in region</div>
           </div>`;
         }}
       />
