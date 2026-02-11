@@ -1,138 +1,64 @@
 
 
-# Interactive Visual Features for CLEARFIELD
-*Inspired by connection maps, iceberg charts, and radial knowledge webs*
+# Interactive Globe Map for CLEARFIELD
 
----
+## Overview
+Add an interactive 3D globe to CLEARFIELD using `react-globe.gl` -- a ThreeJS/WebGL-powered React component that supports country polygons, city points, arcs, heatmaps, and click interactions. This will be a new "GLOBE" page in the sidebar.
 
-## Feature 1: Interactive Connection Web ("The Web")
+## What You'll Get
+- A dark, rotating 3D globe matching the CLEARFIELD intelligence aesthetic
+- Clickable countries that highlight and show event/evidence counts
+- City markers for locations tied to evidence and claims in the database
+- Zoom into any region by clicking (smooth camera animation)
+- Event pins showing publicly documented locations from evidence objects
+- Filter by evidence type, date range, and topic
+- Detail panel (like the Evidence Graph) slides in when clicking a location
+- All locations link back to source evidence -- no unsourced pins
 
-A zoomable, pannable canvas where every node is an evidence-backed object (document, institution, event, claim) and every edge is a documented relationship.
+## Technical Approach
 
-- **Pan and zoom** like Google Maps across a dense node graph
-- **Click any node** to expand its evidence panel (sources, linked claims, context notes)
-- **Edge types** are color-coded: Citation (cyan), Contradiction (red/amber), Temporal overlap (green), Financial link (gold)
-- **Search highlights** a node and pulses its connections outward
-- **Filter toggles**: show/hide by category (Institutions, Events, Documents, People mentioned in claims)
-- **Community-contributed nodes**: users submit connections with required evidence links
-- Every connection displays its source — no unsourced lines
-- Built with a canvas-based graph library (e.g., react-force-graph or custom SVG/Canvas renderer)
+### New dependency
+- `react-globe.gl` -- lightweight React wrapper around globe.gl (ThreeJS-based)
 
-**Why users love it**: It's the conspiracy map experience, but every line is clickable and citable.
+### New files
+1. **`src/pages/GlobePage.tsx`** -- Main page with the globe, filter bar, and detail panel
+2. **`src/components/globe/GlobeView.tsx`** -- The react-globe.gl component configured with dark theme, country polygons (from public GeoJSON), city/event point layers, and click handlers
+3. **`src/components/globe/LocationDetailPanel.tsx`** -- Slide-in panel showing evidence, claims, and context notes for a clicked location
+4. **`src/lib/demo-globe-data.ts`** -- Demo dataset of real-world locations tied to existing demo evidence (e.g., Fort Meade/NSA, Mountain View/Google, Washington DC/Executive Orders)
 
----
+### Modified files
+- **`src/App.tsx`** -- Add `/globe` route
+- **`src/components/layout/AppSidebar.tsx`** -- Add GLOBE nav item with Globe icon
 
-## Feature 2: The Iceberg Explorer ("Depth View")
+### Globe configuration
+- Dark globe texture (night-sky earth image from public CDN or embedded dark style)
+- Country polygons with low-opacity borders, highlight on hover
+- Atmosphere glow in cyan to match the CLEARFIELD palette
+- Point markers styled as glowing dots (color-coded by evidence type)
+- Click any point to zoom in and open the detail panel
+- Labels layer for major cities when zoomed in
+- Custom hex polygon layer ready for future heatmap features (Phase 2 enhancement)
 
-A vertical interactive iceberg visualization showing topics layered by how well-documented they are.
+### Demo data structure
+Each location point will include:
+- Latitude/longitude
+- Label (location name)
+- Category (institution, event, document origin)
+- Linked evidence IDs (from existing demo data)
+- Source count
+- Color mapped to evidence type
 
-- **Surface level** (top): Well-sourced, mainstream-acknowledged facts
-- **Mid-depth**: Disputed claims with partial evidence
-- **Deep**: Speculation, theories with minimal sourcing
-- **Abyss**: Open questions with zero evidence either way
-- Each layer is **clickable** — expands into the claims and evidence at that depth
-- Topics **auto-sort** based on evidence density (AI-calculated from linked sources)
-- Users can **submit claims** and the system places them at the appropriate depth
-- Visual design: dark ocean gradient, glowing text, parallax scroll effect
+### UI layout
+- Full-height globe canvas with filter bar at top (matching Evidence Graph style)
+- Filters: by evidence type, date range, topic
+- Location detail panel slides in from the right (same pattern as NodeDetailPanel)
+- Bottom watermark: "CLEARFIELD // GLOBAL INTELLIGENCE MAP // EVENT-BASED ONLY"
 
-**Why users love it**: Gamifies the "how deep does this go" curiosity while honestly showing where evidence runs out.
-
----
-
-## Feature 3: Radial Topic Explorer ("The Nexus")
-
-A circular/radial visualization where a central topic radiates outward into subtopics, evidence clusters, and related claims — like the Energy Map reference image.
-
-- **Center**: The selected topic (e.g., "Federal Reserve", "DARPA", "Pharmaceutical Industry")
-- **Inner ring**: Direct evidence objects (court filings, documents, news articles)
-- **Middle ring**: Related claims and user interpretations
-- **Outer ring**: Connected topics and institutions
-- Click any ring segment to **re-center** the visualization on that node
-- **Animated transitions** as you navigate between topics
-- Size of segments proportional to evidence density
-- Color-coded by evidence type
-
-**Why users love it**: Beautiful, meditative exploration. Like Wikipedia rabbit holes but visual.
-
----
-
-## Feature 4: Circuit Board Network ("Intel View")
-
-A DARPA-map-inspired dark circuit board aesthetic showing institutional and organizational connections.
-
-- **Dark background** with thin glowing connection lines (very on-brand for CLEARFIELD)
-- Nodes styled as circuit components: circles for institutions, squares for events, diamonds for documents
-- **Hover** shows a tooltip with quick summary and source count
-- **Click** opens a detailed dossier panel (all evidence, claims, context notes for that node)
-- **Animated data flow** along edges showing citation direction
-- **Filter by era**: toggle time periods to see how connections evolved
-- Red accent nodes for contradictions/disputes
-
-**Why users love it**: The "hacker intelligence terminal" aesthetic at its peak. Dense, serious, explorable.
-
----
-
-## Feature 5: Rabbit Hole Navigator ("Deep Dive")
-
-A guided exploration mode: pick any topic and the system shows you a vertical drill-down path.
-
-- Start with a topic card at the top
-- AI generates a structured "rabbit hole" path: 5-10 layers deep
-- Each layer shows: what we know, what's disputed, what's unknown
-- Users can **fork the path** at any junction (choose which branch to follow)
-- **Breadcrumb trail** shows your exploration path
-- **Save and share** your rabbit hole paths with other users
-- Every layer links back to source evidence
-- "You are here" indicator showing depth level
-
-**Why users love it**: Guided exploration with agency. Like a "choose your own investigation."
-
----
-
-## Feature 6: Living Timeline River
-
-A horizontal flowing timeline with branching narrative streams.
-
-- Main river = the primary documented timeline of events
-- **Branches** split off where narratives diverge (different sources tell different stories)
-- **Confluences** where branches merge back (when evidence aligns)
-- **Gaps** visually shown as dried-up sections (missing evidence periods)
-- **Hover over any event** for quick evidence preview
-- **Click** to see full evidence panel
-- **Scroll horizontally** through time, zoom in/out for detail
-- Color intensity shows evidence density (bright = well-sourced, dim = sparse)
-
-**Why users love it**: Shows how narratives form, split, and sometimes reconverge — makes the process of truth-emergence visible.
-
----
-
-## Implementation Approach
-
-### Phase A (Build First)
-1. **Connection Web** — This is the core "Evidence Graph" page already stubbed out, just needs the interactive canvas
-2. **Circuit Board view** — An alternative rendering mode for the same graph data, matching CLEARFIELD's aesthetic perfectly
-
-### Phase B (Build Second)
-3. **Iceberg Explorer** — New page/component, uses claim + evidence data to auto-sort by depth
-4. **Timeline River** — Enhances the existing Timeline page with branching narratives
-
-### Phase C (Build Third)
-5. **Radial Topic Explorer** — Advanced visualization, needs good topic clustering
-6. **Rabbit Hole Navigator** — AI-powered guided exploration, uses Lovable AI for path generation
-
-### Technical Stack
-- **Graph rendering**: Custom SVG/Canvas with d3-force for physics simulation, or react-force-graph-2d for the connection web
-- **Iceberg/Radial**: Custom SVG components with Framer Motion animations
-- **Timeline**: Custom horizontal scroll component with zoom controls
-- **Data layer**: All visualizations pull from the same claims + evidence database tables
-- **AI layer**: Lovable AI (Gemini) for auto-categorizing depth levels, generating rabbit hole paths, and clustering related topics
-
-### Database Requirements
-- Topics table (for organizing clusters)
-- Connections table (node-to-node relationships with evidence links and edge types)
-- User exploration paths table (saved rabbit holes)
-- Topic depth scores (AI-calculated evidence density)
-
-### Key Principle
-Every visual element must link back to evidence. No floating unsourced nodes. If a connection exists on the graph, it has a citation. This is what separates CLEARFIELD from a static conspiracy poster — **every line is clickable and verifiable**.
+### Design details
+- Globe background: transparent (inherits the dark grid-bg)
+- Atmosphere: cyan glow
+- Country borders: dim cyan lines
+- Event markers: glowing colored dots with pulse animation
+- Hover: country highlights with amber glow
+- Click: smooth camera fly-to animation, detail panel opens
 
