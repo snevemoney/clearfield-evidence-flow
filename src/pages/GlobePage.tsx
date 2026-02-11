@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Globe as GlobeIcon, Filter, X } from "lucide-react";
 import { GlobeView } from "@/components/globe/GlobeView";
 import { LocationDetailPanel } from "@/components/globe/LocationDetailPanel";
@@ -27,6 +28,16 @@ const GlobePage = () => {
   const [isQuerying, setIsQuerying] = useState(false);
   const [queryResult, setQueryResult] = useState<AiQueryResult | null>(null);
   const [cameraTarget, setCameraTarget] = useState<{ lat: number; lng: number; altitude: number } | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-query from URL param
+  useEffect(() => {
+    const search = searchParams.get("search");
+    if (search) {
+      setSearchParams({}, { replace: true });
+      handleQuery(search);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleFilter = (cat: string) => {
     setFilter((prev) =>

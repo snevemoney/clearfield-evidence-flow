@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Orbit, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { RadialVisualization } from "@/components/nexus/RadialVisualization";
@@ -9,6 +10,21 @@ const NexusPage = () => {
   const [currentTopic, setCurrentTopic] = useState("surveillance");
   const [history, setHistory] = useState<string[]>([]);
   const [selectedNode, setSelectedNode] = useState<NexusNode | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-navigate from URL param
+  useEffect(() => {
+    const topic = searchParams.get("topic");
+    if (topic) {
+      setSearchParams({}, { replace: true });
+      const matchingId = getAllTopicIds().find(
+        (id) => getTopicLabel(id).toLowerCase() === topic.toLowerCase() || id === topic.toLowerCase()
+      );
+      if (matchingId && matchingId !== currentTopic) {
+        navigateTo(matchingId);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const universe = getTopicUniverse(currentTopic);
 
