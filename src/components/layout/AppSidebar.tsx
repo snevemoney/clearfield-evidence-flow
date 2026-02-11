@@ -11,6 +11,7 @@ import {
   HelpCircle,
   Globe,
   Orbit,
+  Rabbit,
   LogIn,
   Shield,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const navItems = [
   { path: "/graph", label: "GRAPH", icon: GitBranch },
   { path: "/globe", label: "GLOBE", icon: Globe },
   { path: "/nexus", label: "THE NEXUS", icon: Orbit },
+  { path: "/rabbit-hole", label: "RABBIT HOLE", icon: Rabbit },
   { path: "/timeline", label: "TIMELINE", icon: Clock },
   { path: "/iceberg", label: "DEPTH VIEW", icon: Layers },
   { path: "/search", label: "SEARCH", icon: Search },
