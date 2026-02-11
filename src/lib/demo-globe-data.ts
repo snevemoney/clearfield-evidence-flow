@@ -238,3 +238,52 @@ export const demoGlobeLocations: GlobeLocation[] = [
     size: 0.7,
   },
 ];
+
+export interface GlobeArc {
+  id: string;
+  startLat: number;
+  startLng: number;
+  endLat: number;
+  endLng: number;
+  color: [string, string];
+  label: string;
+  network: string;
+  description: string;
+}
+
+export const ARC_NETWORKS: Record<string, { color: string; label: string }> = {
+  five_eyes: { color: "#00e5ff", label: "FIVE EYES" },
+  prism: { color: "#a78bfa", label: "PRISM PROGRAM" },
+  financial: { color: "#f59e0b", label: "FINANCIAL" },
+  intelligence: { color: "#ef4444", label: "INTELLIGENCE" },
+  policy: { color: "#22c55e", label: "POLICY / GOVERNANCE" },
+};
+
+// Helper to find location coords by id
+const loc = (id: string) => {
+  const l = demoGlobeLocations.find((x) => x.id === id);
+  return l ? { lat: l.lat, lng: l.lng } : { lat: 0, lng: 0 };
+};
+
+export const demoGlobeArcs: GlobeArc[] = [
+  // Five Eyes Alliance
+  { id: "arc-1", ...loc("loc-1"), ...({ endLat: loc("loc-5").lat, endLng: loc("loc-5").lng }), startLat: loc("loc-1").lat, startLng: loc("loc-1").lng, color: ["#00e5ff", "#00e5ff"], label: "NSA ↔ GCHQ", network: "five_eyes", description: "Five Eyes SIGINT sharing agreement. Joint surveillance operations documented in Snowden archive." },
+  { id: "arc-2", startLat: loc("loc-1").lat, startLng: loc("loc-1").lng, endLat: loc("loc-9").lat, endLng: loc("loc-9").lng, color: ["#00e5ff", "#00e5ff"], label: "NSA ↔ Pine Gap", network: "five_eyes", description: "Joint US-Australia satellite surveillance facility. Five Eyes SIGINT relay station." },
+  { id: "arc-3", startLat: loc("loc-5").lat, startLng: loc("loc-5").lng, endLat: loc("loc-9").lat, endLng: loc("loc-9").lng, color: ["#00e5ff", "#00e5ff"], label: "GCHQ ↔ Pine Gap", network: "five_eyes", description: "UK-Australia intelligence link within Five Eyes framework." },
+  // PRISM Program connections
+  { id: "arc-4", startLat: loc("loc-1").lat, startLng: loc("loc-1").lng, endLat: loc("loc-2").lat, endLng: loc("loc-2").lng, color: ["#a78bfa", "#a78bfa"], label: "NSA ↔ Google", network: "prism", description: "Google named as PRISM data provider in leaked NSA slides (2013)." },
+  { id: "arc-5", startLat: loc("loc-1").lat, startLng: loc("loc-1").lng, endLat: loc("loc-7").lat, endLng: loc("loc-7").lng, color: ["#a78bfa", "#a78bfa"], label: "NSA ↔ Meta", network: "prism", description: "Facebook/Meta named as PRISM data provider in leaked NSA slides." },
+  // Intelligence links
+  { id: "arc-6", startLat: loc("loc-14").lat, startLng: loc("loc-14").lng, endLat: loc("loc-3").lat, endLng: loc("loc-3").lng, color: ["#ef4444", "#ef4444"], label: "CIA ↔ Pentagon", network: "intelligence", description: "Intelligence coordination between CIA and Department of Defense." },
+  { id: "arc-7", startLat: loc("loc-14").lat, startLng: loc("loc-14").lng, endLat: loc("loc-8").lat, endLng: loc("loc-8").lng, color: ["#ef4444", "#ef4444"], label: "CIA ↔ Kremlin", network: "intelligence", description: "Documented Cold War and post-Cold War intelligence operations. Subject of multiple declassified reports." },
+  { id: "arc-8", startLat: loc("loc-14").lat, startLng: loc("loc-14").lng, endLat: loc("loc-5").lat, endLng: loc("loc-5").lng, color: ["#ef4444", "#00e5ff"], label: "CIA ↔ GCHQ", network: "intelligence", description: "US-UK intelligence sharing. Special relationship in HUMINT and SIGINT." },
+  // Financial network
+  { id: "arc-9", startLat: loc("loc-16").lat, startLng: loc("loc-16").lng, endLat: loc("loc-15").lat, endLng: loc("loc-15").lng, color: ["#f59e0b", "#f59e0b"], label: "Fed ↔ Bank of England", network: "financial", description: "Central bank coordination. Joint monetary policy actions documented during financial crises." },
+  { id: "arc-10", startLat: loc("loc-16").lat, startLng: loc("loc-16").lng, endLat: loc("loc-17").lat, endLng: loc("loc-17").lng, color: ["#f59e0b", "#f59e0b"], label: "Fed ↔ WEF Davos", network: "financial", description: "Federal Reserve officials regular attendees at World Economic Forum. Policy coordination documented." },
+  // Policy / Governance
+  { id: "arc-11", startLat: loc("loc-4").lat, startLng: loc("loc-4").lng, endLat: loc("loc-6").lat, endLng: loc("loc-6").lng, color: ["#22c55e", "#22c55e"], label: "US Congress ↔ EU Parliament", network: "policy", description: "Transatlantic policy coordination. GDPR enacted partly in response to US surveillance revelations." },
+  { id: "arc-12", startLat: loc("loc-4").lat, startLng: loc("loc-4").lng, endLat: loc("loc-11").lat, endLng: loc("loc-11").lng, color: ["#22c55e", "#22c55e"], label: "US Congress ↔ UN", network: "policy", description: "UN surveillance resolutions following Snowden disclosures. US voting record documented." },
+  // Supply chain / tech
+  { id: "arc-13", startLat: loc("loc-12").lat, startLng: loc("loc-12").lng, endLat: loc("loc-3").lat, endLng: loc("loc-3").lng, color: ["#ef4444", "#22c55e"], label: "Shenzhen ↔ Pentagon", network: "intelligence", description: "Supply chain security investigations. Pentagon reports on Chinese tech component risks." },
+  { id: "arc-14", startLat: loc("loc-10").lat, startLng: loc("loc-10").lng, endLat: loc("loc-13").lat, endLng: loc("loc-13").lng, color: ["#00e5ff", "#a78bfa"], label: "DARPA ↔ CERN", network: "policy", description: "Historical ARPANET collaboration. Foundational internet protocol development." },
+];

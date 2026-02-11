@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Globe as GlobeIcon, Filter } from "lucide-react";
 import { GlobeView } from "@/components/globe/GlobeView";
 import { LocationDetailPanel } from "@/components/globe/LocationDetailPanel";
-import { demoGlobeLocations, CATEGORY_COLORS, type GlobeLocation } from "@/lib/demo-globe-data";
+import { demoGlobeLocations, demoGlobeArcs, CATEGORY_COLORS, ARC_NETWORKS, type GlobeLocation } from "@/lib/demo-globe-data";
 
 const categories = [
   { key: "institution", label: "INSTITUTIONS" },
@@ -16,10 +16,17 @@ const categories = [
 const GlobePage = () => {
   const [selectedLocation, setSelectedLocation] = useState<GlobeLocation | null>(null);
   const [filter, setFilter] = useState<string[]>([]);
+  const [arcFilter, setArcFilter] = useState<string[]>([]);
 
   const toggleFilter = (cat: string) => {
     setFilter((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
+
+  const toggleArcFilter = (network: string) => {
+    setArcFilter((prev) =>
+      prev.includes(network) ? prev.filter((n) => n !== network) : [...prev, network]
     );
   };
 
@@ -35,7 +42,7 @@ const GlobePage = () => {
           </span>
         </div>
         <div className="font-mono text-[10px] text-muted-foreground">
-          {demoGlobeLocations.length} LOCATIONS MAPPED
+          {demoGlobeLocations.length} LOCATIONS // {demoGlobeArcs.length} CONNECTIONS
         </div>
       </div>
 
@@ -64,14 +71,39 @@ const GlobePage = () => {
             </button>
           );
         })}
+
+        <div className="h-4 w-px bg-border mx-1" />
+        <span className="font-mono text-[9px] text-muted-foreground tracking-wider mr-1">ARCS:</span>
+        {Object.entries(ARC_NETWORKS).map(([key, net]) => {
+          const active = arcFilter.length === 0 || arcFilter.includes(key);
+          return (
+            <button
+              key={key}
+              onClick={() => toggleArcFilter(key)}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-sm font-mono text-[9px] tracking-wider border transition-all ${
+                active
+                  ? "border-border text-foreground"
+                  : "border-transparent text-muted-foreground/40"
+              }`}
+            >
+              <div
+                className="h-px w-3"
+                style={{ backgroundColor: active ? net.color : "#334155" }}
+              />
+              {net.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Globe canvas */}
       <div className="flex-1 relative overflow-hidden">
         <GlobeView
           locations={demoGlobeLocations}
+          arcs={demoGlobeArcs}
           onLocationClick={setSelectedLocation}
           filter={filter}
+          arcFilter={arcFilter}
         />
 
         {/* Detail panel */}
