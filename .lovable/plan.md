@@ -1,41 +1,64 @@
 
-# Replace Hex Bin Heatmap with Flat Color Spectrum Heatmap
+
+# Integrate Live Intel Data Into Existing Pages (Remove Intel Hub)
 
 ## What Changes
 
-The current heatmap uses **vertical hexagonal prisms** (hex bins) that rise up from the globe surface. This will be replaced with the **Heatmaps Layer** built into react-globe.gl, which renders smooth, flat color gradients across the globe surface using Gaussian Kernel Density Estimation (KDE). This creates a much more natural "heat signature" visualization with color spectrum transitions.
+Remove the standalone Intelligence Hub page and instead wire the `intel_entries` database data directly into the pages you already have. Each page will automatically query and merge live intel data alongside the existing demo data -- no manual buttons needed.
 
-## Visual Result
+## Pages Updated
 
-Instead of 3D hexagonal columns, you will see smooth colored areas that spread across regions where data is concentrated. High-density areas (like DC/Virginia) will glow bright warm colors, while lower-density areas fade through a cool-to-warm spectrum. The effect is similar to a thermal camera overlay on the globe.
+### 1. Index Page (Dashboard)
+- Stats cards pull real counts from `intel_entries` (e.g., active claims, evidence objects, persons tracked)
+- Live Feed section shows the most recent intel entries with fact-check status badges (verified/disputed/unverified)
+- "What We Don't Know" panel shows real counts: verified facts, disputed claims, unverified items, etc.
 
-## Technical Details
+### 2. Graph Page
+- Fetches `intel_entries` with categories matching graph node types (person, institution, event, document, claim)
+- Merges them into the force graph as new nodes alongside existing demo nodes
+- Fetches `intel_connections` to render as new edges between intel-sourced nodes
+- Color-codes intel nodes with a subtle indicator showing they came from live data
 
-### File: `src/components/globe/GlobeView.tsx`
+### 3. Globe Page
+- Fetches `intel_entries` that have `lat`/`lng` values
+- Renders them as additional location markers on the globe
+- Adds their coordinates to the heatmap layer for density visualization
+- Updates the location count in the header dynamically
 
-**Remove**: All `hexBin*` and `hex*` props (lines 205-229) -- the hex bin layer configuration.
+### 4. Timeline Page
+- Fetches `intel_entries` that have `published_at` dates
+- Renders them as additional events on the timeline river
+- Color-codes by `fact_check_status` (verified = green, disputed = amber, unverified = slate)
+- Merges with existing demo timeline data
 
-**Add**: Heatmaps Layer props:
-- `heatmapsData` -- wraps all heatmap points into a single dataset array `[{ points, color, ... }]`
-- `heatmapPoints` -- accessor for the points array within each dataset
-- `heatmapPointLat` / `heatmapPointLng` / `heatmapPointWeight` -- same field accessors as before
-- `heatmapBandwidth` -- set to ~4 degrees for smooth spread across regions
-- `heatmapColorFn` -- custom function mapping density (0-1) to a cyan-to-amber-to-red color spectrum matching the intelligence terminal aesthetic
-- `heatmapColorSaturation` -- set to ~1.5 for vivid colors
-- `heatmapBaseAltitude` -- 0.004 (just above the surface, flat)
-- `heatmapTopAltitude` -- 0.004 (same as base = completely flat surface heatmap)
+### 5. Nexus Page
+- Fetches `intel_entries` tagged with "epstein" and groups them by category
+- Adds an "Epstein Network" topic universe populated from database entries
+- Entities become nodes on the radial visualization
 
-The `mergedHeatmap` data will be restructured from a flat array of points into a single heatmap dataset object: `[{ points: mergedHeatmap }]`.
+## Removals
+- Delete the `/intelligence` route from `App.tsx`
+- Remove the "INTEL HUB" nav item from `AppSidebar.tsx`
+- The `IntelligenceHub.tsx` page file will be deleted
+- Edge functions remain intact (they can still be called programmatically or by future automation)
 
-The custom color function will use an HSL spectrum:
-- Low density (0): transparent dark blue
-- Medium density (0.3-0.5): cyan/teal (matching the app's primary color)
-- High density (0.7-1.0): amber to red (hot zones)
+## Technical Approach
 
-### File: `src/components/globe/GlobeView.tsx` (interface)
+Each page will use `@tanstack/react-query` with `useQuery` to fetch from the `intel_entries` table via the Supabase client. Data merging happens in the component -- demo data stays as the baseline, and live intel entries get appended/merged on top.
 
-No changes needed to the component interface -- `aiHeatmapPoints` and `showHeatmap` props remain the same.
+### Data Flow
+- No manual triggers -- pages load intel data on mount automatically
+- Queries are cached by react-query so navigation between pages is instant
+- Each page only fetches the subset it needs (e.g., Globe only fetches entries with lat/lng)
 
-### Files unchanged
-- `src/lib/demo-globe-data.ts` -- HeatmapPoint interface and data remain identical
-- `src/pages/GlobePage.tsx` -- toggle logic and filters stay the same
+### Files Modified
+- `src/App.tsx` -- remove Intel Hub route and import
+- `src/components/layout/AppSidebar.tsx` -- remove INTEL HUB nav item
+- `src/pages/Index.tsx` -- add useQuery for intel stats and live feed
+- `src/pages/Graph.tsx` and `src/components/graph/ConnectionWeb.tsx` -- merge intel nodes/edges
+- `src/pages/GlobePage.tsx` -- merge intel locations and heatmap points
+- `src/pages/Timeline.tsx` -- merge intel entries with dates into timeline
+- `src/pages/NexusPage.tsx` and `src/lib/demo-nexus-data.ts` -- add Epstein Network topic universe from DB
+
+### Files Deleted
+- `src/pages/IntelligenceHub.tsx`
