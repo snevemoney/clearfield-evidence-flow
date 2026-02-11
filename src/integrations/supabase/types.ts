@@ -280,6 +280,177 @@ export type Database = {
           },
         ]
       }
+      ingestion_runs: {
+        Row: {
+          created_at: string
+          entries_added: number | null
+          entries_found: number | null
+          error_message: string | null
+          id: string
+          query: string
+          source_type: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          entries_added?: number | null
+          entries_found?: number | null
+          error_message?: string | null
+          id?: string
+          query: string
+          source_type?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          entries_added?: number | null
+          entries_found?: number | null
+          error_message?: string | null
+          id?: string
+          query?: string
+          source_type?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      intel_connections: {
+        Row: {
+          connection_type: string
+          created_at: string
+          description: string | null
+          evidence_strength: string
+          id: string
+          source_entry_id: string
+          target_entry_id: string
+        }
+        Insert: {
+          connection_type?: string
+          created_at?: string
+          description?: string | null
+          evidence_strength?: string
+          id?: string
+          source_entry_id: string
+          target_entry_id: string
+        }
+        Update: {
+          connection_type?: string
+          created_at?: string
+          description?: string | null
+          evidence_strength?: string
+          id?: string
+          source_entry_id?: string
+          target_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intel_connections_source_entry_id_fkey"
+            columns: ["source_entry_id"]
+            isOneToOne: false
+            referencedRelation: "intel_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intel_connections_target_entry_id_fkey"
+            columns: ["target_entry_id"]
+            isOneToOne: false
+            referencedRelation: "intel_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intel_entries: {
+        Row: {
+          ai_summary: string | null
+          category: string
+          created_at: string
+          credibility_score: number | null
+          description: string | null
+          fact_check_notes: string | null
+          fact_check_status: string
+          id: string
+          ingested_at: string
+          lat: number | null
+          lng: number | null
+          published_at: string | null
+          raw_content: string | null
+          related_entities: string[] | null
+          source_type: string
+          source_url: string | null
+          tags: string[] | null
+          title: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          category?: string
+          created_at?: string
+          credibility_score?: number | null
+          description?: string | null
+          fact_check_notes?: string | null
+          fact_check_status?: string
+          id?: string
+          ingested_at?: string
+          lat?: number | null
+          lng?: number | null
+          published_at?: string | null
+          raw_content?: string | null
+          related_entities?: string[] | null
+          source_type?: string
+          source_url?: string | null
+          tags?: string[] | null
+          title: string
+        }
+        Update: {
+          ai_summary?: string | null
+          category?: string
+          created_at?: string
+          credibility_score?: number | null
+          description?: string | null
+          fact_check_notes?: string | null
+          fact_check_status?: string
+          id?: string
+          ingested_at?: string
+          lat?: number | null
+          lng?: number | null
+          published_at?: string | null
+          raw_content?: string | null
+          related_entities?: string[] | null
+          source_type?: string
+          source_url?: string | null
+          tags?: string[] | null
+          title?: string
+        }
+        Relationships: []
+      }
+      intel_sources: {
+        Row: {
+          created_at: string
+          id: string
+          last_fetched_at: string | null
+          name: string
+          reliability_rating: number | null
+          source_type: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_fetched_at?: string | null
+          name: string
+          reliability_rating?: number | null
+          source_type?: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_fetched_at?: string | null
+          name?: string
+          reliability_rating?: number | null
+          source_type?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
