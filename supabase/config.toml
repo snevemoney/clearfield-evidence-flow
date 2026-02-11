@@ -1,1 +1,7 @@
 project_id = "sijocrtrjpbkwjbihgok"
+
+[functions.globe-query]
+verify_jwt = false
+
+[functions.rabbit-hole]
+verify_jwt = false
