@@ -1,4 +1,5 @@
-import { X, MapPin, ArrowRight, AlertTriangle } from "lucide-react";
+import { X, MapPin, ArrowRight, AlertTriangle, Rabbit } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 export interface AiQueryResult {
@@ -17,6 +18,7 @@ interface QueryResultPanelProps {
 }
 
 export function QueryResultPanel({ result, onClear, onFlyTo }: QueryResultPanelProps) {
+  const navigate = useNavigate();
   return (
     <AnimatePresence>
       {result && (
@@ -64,8 +66,15 @@ export function QueryResultPanel({ result, onClear, onFlyTo }: QueryResultPanelP
               >
                 <div className="flex items-center gap-2">
                   <MapPin className="h-3 w-3 text-pink-400 shrink-0" />
-                  <span className="text-xs font-medium text-foreground truncate">{loc.label}</span>
-                  <ArrowRight className="h-3 w-3 text-muted-foreground/40 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <span className="text-xs font-medium text-foreground truncate flex-1">{loc.label}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate(`/rabbit-hole?topic=${encodeURIComponent(loc.label)}`); }}
+                    className="p-0.5 text-muted-foreground/40 hover:text-primary transition-colors shrink-0"
+                    title="Start Rabbit Hole"
+                  >
+                    <Rabbit className="h-3 w-3" />
+                  </button>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 pl-5">{loc.description}</p>
               </button>

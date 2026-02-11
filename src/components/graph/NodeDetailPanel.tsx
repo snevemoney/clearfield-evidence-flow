@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ExternalLink, FileText, AlertTriangle } from "lucide-react";
+import { X, ExternalLink, FileText, AlertTriangle, Orbit, Rabbit, Globe } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { demoLinks, EDGE_COLORS, NODE_COLORS, demoNodes, type GraphNode } from "@/lib/demo-graph-data";
 
 interface NodeDetailPanelProps {
@@ -8,6 +9,7 @@ interface NodeDetailPanelProps {
 }
 
 export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
+  const navigate = useNavigate();
   if (!node) return null;
 
   const connections = demoLinks.filter((l) => l.source === node.id || l.target === node.id);
@@ -71,6 +73,32 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
                 );
               })}
             </div>
+          </div>
+
+          {/* Cross-reference */}
+          <div>
+            <h4 className="font-mono text-[10px] tracking-widest text-muted-foreground mb-2">CROSS-REFERENCE</h4>
+            <button
+              onClick={() => navigate(`/nexus?topic=${encodeURIComponent(node.label)}`)}
+              className="flex items-center gap-2 w-full border border-border rounded-sm p-2 bg-secondary/30 hover:bg-secondary/60 transition-all mb-1.5"
+            >
+              <Orbit className="h-3 w-3 text-primary" />
+              <span className="font-mono text-[10px] text-foreground">EXPLORE IN NEXUS</span>
+            </button>
+            <button
+              onClick={() => navigate(`/rabbit-hole?topic=${encodeURIComponent(node.label)}`)}
+              className="flex items-center gap-2 w-full border border-border rounded-sm p-2 bg-secondary/30 hover:bg-secondary/60 transition-all mb-1.5"
+            >
+              <Rabbit className="h-3 w-3 text-primary" />
+              <span className="font-mono text-[10px] text-foreground">START RABBIT HOLE</span>
+            </button>
+            <button
+              onClick={() => navigate(`/globe?search=${encodeURIComponent(node.label)}`)}
+              className="flex items-center gap-2 w-full border border-border rounded-sm p-2 bg-secondary/30 hover:bg-secondary/60 transition-all mb-1.5"
+            >
+              <Globe className="h-3 w-3 text-primary" />
+              <span className="font-mono text-[10px] text-foreground">VIEW ON GLOBE</span>
+            </button>
           </div>
 
           {/* Disclaimer */}

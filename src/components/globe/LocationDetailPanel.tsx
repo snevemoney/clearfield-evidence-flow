@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, FileText, AlertTriangle, MapPin } from "lucide-react";
+import { X, FileText, AlertTriangle, MapPin, Orbit, Rabbit } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { type GlobeLocation, CATEGORY_COLORS } from "@/lib/demo-globe-data";
 
 interface LocationDetailPanelProps {
@@ -8,6 +9,7 @@ interface LocationDetailPanelProps {
 }
 
 export function LocationDetailPanel({ location, onClose }: LocationDetailPanelProps) {
+  const navigate = useNavigate();
   if (!location) return null;
 
   const color = CATEGORY_COLORS[location.category] || "#64748b";
@@ -75,6 +77,25 @@ export function LocationDetailPanel({ location, onClose }: LocationDetailPanelPr
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Cross-reference */}
+          <div>
+            <h4 className="font-mono text-[10px] tracking-widest text-muted-foreground mb-2">CROSS-REFERENCE</h4>
+            <button
+              onClick={() => navigate(`/nexus?topic=${encodeURIComponent(location.label)}`)}
+              className="flex items-center gap-2 w-full border border-border rounded-sm p-2 bg-secondary/30 hover:bg-secondary/60 transition-all mb-1.5"
+            >
+              <Orbit className="h-3 w-3 text-primary" />
+              <span className="font-mono text-[10px] text-foreground">EXPLORE IN NEXUS</span>
+            </button>
+            <button
+              onClick={() => navigate(`/rabbit-hole?topic=${encodeURIComponent(location.label)}`)}
+              className="flex items-center gap-2 w-full border border-border rounded-sm p-2 bg-secondary/30 hover:bg-secondary/60 transition-all mb-1.5"
+            >
+              <Rabbit className="h-3 w-3 text-primary" />
+              <span className="font-mono text-[10px] text-foreground">START RABBIT HOLE</span>
+            </button>
           </div>
 
           {/* Disclaimer */}

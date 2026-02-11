@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Rabbit, ChevronDown, Loader2, AlertTriangle, BookOpen, HelpCircle, MessageSquare, GitFork, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +39,17 @@ const RabbitHolePage = () => {
   const [path, setPath] = useState<PathEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [customTopic, setCustomTopic] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-start from query param
+  useEffect(() => {
+    const topic = searchParams.get("topic");
+    if (topic && path.length === 0 && !isLoading) {
+      setSearchParams({}, { replace: true });
+      setCustomTopic(topic);
+      generateLayer(topic);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const generateLayer = useCallback(async (topic: string, parentLayer?: Layer, direction?: string) => {
     setIsLoading(true);
