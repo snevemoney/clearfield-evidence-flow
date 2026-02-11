@@ -5,3 +5,18 @@ verify_jwt = false
 
 [functions.rabbit-hole]
 verify_jwt = false
+
+[functions.ingest-news]
+verify_jwt = false
+
+[functions.ingest-twitter]
+verify_jwt = false
+
+[functions.ingest-documents]
+verify_jwt = false
+
+[functions.process-intelligence]
+verify_jwt = false
+
+[functions.fact-check]
+verify_jwt = false

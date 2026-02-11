@@ -17,6 +17,7 @@ import Auth from "./pages/Auth";
 import GlobePage from "./pages/GlobePage";
 import NexusPage from "./pages/NexusPage";
 import RabbitHolePage from "./pages/RabbitHolePage";
+import IntelligenceHub from "./pages/IntelligenceHub";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/globe" element={<GlobePage />} />
             <Route path="/nexus" element={<NexusPage />} />
             <Route path="/rabbit-hole" element={<RabbitHolePage />} />
+            <Route path="/intelligence" element={<IntelligenceHub />} />
           </Route>
           <Route path="/auth" element={<Auth />} />
           <Route path="*" element={<NotFound />} />
