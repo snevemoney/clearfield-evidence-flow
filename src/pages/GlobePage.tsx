@@ -1,8 +1,12 @@
-import { useState } from "react";
-import { Globe as GlobeIcon, Filter } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Globe as GlobeIcon, Filter, X } from "lucide-react";
 import { GlobeView } from "@/components/globe/GlobeView";
 import { LocationDetailPanel } from "@/components/globe/LocationDetailPanel";
+import { GlobeQueryBar } from "@/components/globe/GlobeQueryBar";
+import { QueryResultPanel, type AiQueryResult } from "@/components/globe/QueryResultPanel";
 import { demoGlobeLocations, demoGlobeArcs, demoHeatmapPoints, CATEGORY_COLORS, ARC_NETWORKS, type GlobeLocation } from "@/lib/demo-globe-data";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const categories = [
   { key: "institution", label: "INSTITUTIONS" },
@@ -19,6 +23,11 @@ const GlobePage = () => {
   const [arcFilter, setArcFilter] = useState<string[]>([]);
   const [showHeatmap, setShowHeatmap] = useState(true);
 
+  // AI query state
+  const [isQuerying, setIsQuerying] = useState(false);
+  const [queryResult, setQueryResult] = useState<AiQueryResult | null>(null);
+  const [cameraTarget, setCameraTarget] = useState<{ lat: number; lng: number; altitude: number } | null>(null);
+
   const toggleFilter = (cat: string) => {
     setFilter((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
@@ -30,6 +39,56 @@ const GlobePage = () => {
       prev.includes(network) ? prev.filter((n) => n !== network) : [...prev, network]
     );
   };
+
+  const handleQuery = useCallback(async (query: string) => {
+    setIsQuerying(true);
+    setQueryResult(null);
+    setCameraTarget(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("globe-query", {
+        body: { query },
+      });
+
+      if (error) {
+        toast({ title: "Query failed", description: error.message, variant: "destructive" });
+        return;
+      }
+
+      if (data?.error) {
+        toast({ title: "AI Error", description: data.error, variant: "destructive" });
+        return;
+      }
+
+      const result: AiQueryResult = {
+        query,
+        summary: data.summary || "Results generated.",
+        mode: data.mode || "points",
+        locations: data.locations || [],
+        heatmapPoints: data.heatmapPoints || [],
+        arcs: data.arcs || [],
+      };
+
+      setQueryResult(result);
+
+      if (data.camera) {
+        setCameraTarget(data.camera);
+      }
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to query the globe AI.", variant: "destructive" });
+    } finally {
+      setIsQuerying(false);
+    }
+  }, []);
+
+  const clearAiResults = useCallback(() => {
+    setQueryResult(null);
+    setCameraTarget(null);
+  }, []);
+
+  const handleFlyTo = useCallback((lat: number, lng: number) => {
+    setCameraTarget({ lat, lng, altitude: 1.2 });
+  }, []);
 
   return (
     <div className="h-screen flex flex-col grid-bg">
@@ -48,7 +107,7 @@ const GlobePage = () => {
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-2 px-6 py-2 border-b border-border bg-card/50">
+      <div className="flex items-center gap-2 px-6 py-2 border-b border-border bg-card/50 flex-wrap">
         <Filter className="h-3 w-3 text-muted-foreground" />
         <span className="font-mono text-[9px] text-muted-foreground tracking-wider mr-2">FILTER:</span>
         {categories.map((cat) => {
@@ -111,6 +170,19 @@ const GlobePage = () => {
           />
           HEATMAP
         </button>
+
+        {queryResult && (
+          <>
+            <div className="h-4 w-px bg-border mx-1" />
+            <button
+              onClick={clearAiResults}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-sm font-mono text-[9px] tracking-wider border border-pink-500/40 text-pink-400 hover:bg-pink-500/10 transition-all"
+            >
+              <X className="h-3 w-3" />
+              CLEAR AI
+            </button>
+          </>
+        )}
       </div>
 
       {/* Globe canvas */}
@@ -123,6 +195,20 @@ const GlobePage = () => {
           filter={filter}
           arcFilter={arcFilter}
           showHeatmap={showHeatmap}
+          aiLocations={queryResult?.locations}
+          aiHeatmapPoints={queryResult?.heatmapPoints}
+          aiArcs={queryResult?.arcs}
+          cameraTarget={cameraTarget}
+        />
+
+        {/* AI Query bar */}
+        <GlobeQueryBar onQuery={handleQuery} isLoading={isQuerying} />
+
+        {/* AI Result panel */}
+        <QueryResultPanel
+          result={queryResult}
+          onClear={clearAiResults}
+          onFlyTo={handleFlyTo}
         />
 
         {/* Detail panel */}
