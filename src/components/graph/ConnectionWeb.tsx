@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import { demoNodes, demoLinks, EDGE_COLORS, NODE_COLORS, type GraphNode, type GraphLink } from "@/lib/demo-graph-data";
-import { useIntelEntries, useIntelConnections } from "@/hooks/use-intel-data";
+import { useIntelEntriesRealtime as useIntelEntries, useIntelConnectionsRealtime as useIntelConnections } from "@/hooks/use-intel-realtime";
 
 interface ConnectionWebProps {
   onNodeClick: (node: GraphNode | null) => void;

@@ -6,7 +6,7 @@ import { LocationDetailPanel } from "@/components/globe/LocationDetailPanel";
 import { GlobeQueryBar } from "@/components/globe/GlobeQueryBar";
 import { QueryResultPanel, type AiQueryResult } from "@/components/globe/QueryResultPanel";
 import { demoGlobeLocations, demoGlobeArcs, demoHeatmapPoints, CATEGORY_COLORS, ARC_NETWORKS, type GlobeLocation } from "@/lib/demo-globe-data";
-import { useIntelEntries } from "@/hooks/use-intel-data";
+import { useIntelEntriesRealtime as useIntelEntries } from "@/hooks/use-intel-realtime";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 

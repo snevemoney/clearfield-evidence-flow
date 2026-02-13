@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, ZoomIn, ZoomOut, X, FileText, Eye } from "lucide-react";
 import { timelineData, type TimelineEvent } from "@/lib/demo-graph-data";
-import { useIntelEntries } from "@/hooks/use-intel-data";
+import { useIntelEntriesRealtime as useIntelEntries } from "@/hooks/use-intel-realtime";
 
 const typeStyles: Record<string, { color: string; bg: string; border: string }> = {
   verified: { color: "text-emerald-400", bg: "bg-emerald-500", border: "border-emerald-500/40" },

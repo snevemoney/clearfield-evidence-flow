@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { RadialVisualization } from "@/components/nexus/RadialVisualization";
 import { NexusDetailPanel } from "@/components/nexus/NexusDetailPanel";
 import { getTopicUniverse, getAllTopicIds, getTopicLabel, RING_COLORS, RING_LABELS, type NexusNode, type TopicUniverse, addDynamicUniverse } from "@/lib/demo-nexus-data";
-import { useIntelEntries } from "@/hooks/use-intel-data";
+import { useIntelEntriesRealtime as useIntelEntries } from "@/hooks/use-intel-realtime";
 
 const NexusPage = () => {
   const [currentTopic, setCurrentTopic] = useState("surveillance");
