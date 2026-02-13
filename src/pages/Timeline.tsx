@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, ZoomIn, ZoomOut, X, FileText, Eye } from "lucide-react";
 import { timelineData, type TimelineEvent } from "@/lib/demo-graph-data";
-import { useIntelEntries } from "@/hooks/use-intel-data";
+import { useIntelEntriesRealtime } from "@/hooks/use-intel-realtime";
 
 const typeStyles: Record<string, { color: string; bg: string; border: string }> = {
   verified: { color: "text-emerald-400", bg: "bg-emerald-500", border: "border-emerald-500/40" },
@@ -16,7 +16,7 @@ const Timeline = () => {
   const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState<TimelineEvent | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { data: intelEntries = [] } = useIntelEntries();
+  const { data: intelEntries = [] } = useIntelEntriesRealtime();
 
   // Convert intel entries with dates into timeline events
   const intelTimelineEvents: TimelineEvent[] = useMemo(() => {

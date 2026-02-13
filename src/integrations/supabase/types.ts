@@ -145,6 +145,83 @@ export type Database = {
           },
         ]
       }
+      document_pages: {
+        Row: {
+          created_at: string
+          document_id: string
+          extracted_text: string | null
+          has_redactions: boolean | null
+          id: string
+          page_image_url: string | null
+          page_number: number
+          redaction_count: number | null
+          search_vector: unknown
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          extracted_text?: string | null
+          has_redactions?: boolean | null
+          id?: string
+          page_image_url?: string | null
+          page_number: number
+          redaction_count?: number | null
+          search_vector?: unknown
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          extracted_text?: string | null
+          has_redactions?: boolean | null
+          id?: string
+          page_image_url?: string | null
+          page_number?: number
+          redaction_count?: number | null
+          search_vector?: unknown
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_pages_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string
+          file_url: string | null
+          id: string
+          metadata: Json | null
+          source: string | null
+          status: string
+          title: string
+          total_pages: number | null
+        }
+        Insert: {
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          metadata?: Json | null
+          source?: string | null
+          status?: string
+          title: string
+          total_pages?: number | null
+        }
+        Update: {
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          metadata?: Json | null
+          source?: string | null
+          status?: string
+          title?: string
+          total_pages?: number | null
+        }
+        Relationships: []
+      }
       evidence: {
         Row: {
           author: string | null
@@ -564,7 +641,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      search_documents: {
+        Args: { result_limit?: number; search_query: string }
+        Returns: {
+          document_id: string
+          document_source: string
+          document_title: string
+          extracted_text: string
+          has_redactions: boolean
+          page_id: string
+          page_image_url: string
+          page_number: number
+          rank: number
+          redaction_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
