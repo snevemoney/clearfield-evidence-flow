@@ -1,64 +1,116 @@
 
 
-# Integrate Live Intel Data Into Existing Pages (Remove Intel Hub)
+# Pre-Load Document Archive + Bulk OCR + Full-Text Search + Real-Time
 
-## What Changes
+## Overview
 
-Remove the standalone Intelligence Hub page and instead wire the `intel_entries` database data directly into the pages you already have. Each page will automatically query and merge live intel data alongside the existing demo data -- no manual buttons needed.
+Three things happen in this implementation:
+1. A backend function bulk-fetches real DOJ/Epstein court documents via Perplexity, then uses AI to extract page-level text with OCR-style detail and redaction detection -- populating the `documents` and `document_pages` tables at scale
+2. The Search page becomes a full intelligence archive query interface with instant keyword search, redaction-aware results, and a page viewer
+3. All existing pages get real-time subscriptions so new intel entries appear without refreshing
 
-## Pages Updated
+## Phase 1: `seed-document-archive` Edge Function
 
-### 1. Index Page (Dashboard)
-- Stats cards pull real counts from `intel_entries` (e.g., active claims, evidence objects, persons tracked)
-- Live Feed section shows the most recent intel entries with fact-check status badges (verified/disputed/unverified)
-- "What We Don't Know" panel shows real counts: verified facts, disputed claims, unverified items, etc.
+Creates a new edge function that populates the archive in bulk:
 
-### 2. Graph Page
-- Fetches `intel_entries` with categories matching graph node types (person, institution, event, document, claim)
-- Merges them into the force graph as new nodes alongside existing demo nodes
-- Fetches `intel_connections` to render as new edges between intel-sourced nodes
-- Color-codes intel nodes with a subtle indicator showing they came from live data
+- Accepts `{ topics?: string[] }` -- defaults to a comprehensive Epstein document set (flight logs, black book, court filings, victim depositions, financial records, Maxwell trial exhibits, etc.)
+- For each topic, queries Perplexity (sonar-pro) for real document metadata, case numbers, excerpts
+- Sends results to Lovable AI (gemini-3-flash-preview) with a tool-call schema to extract structured output:
+  - Per-document: title, source, estimated page count
+  - Per-page: extracted text content (OCR-style), redaction detection (has_redactions, redaction_count), key entities mentioned
+- Inserts into `documents` table (one row per document) and `document_pages` table (multiple rows per document)
+- The existing `search_vector` trigger auto-indexes all text for full-text search
+- Also creates corresponding `intel_entries` for cross-referencing with the rest of the platform
+- Processes multiple topics in sequence, each generating 10-20 documents with 5-15 pages each
+- Can be called repeatedly to grow the archive
 
-### 3. Globe Page
-- Fetches `intel_entries` that have `lat`/`lng` values
-- Renders them as additional location markers on the globe
-- Adds their coordinates to the heatmap layer for density visualization
-- Updates the location count in the header dynamically
+**Default topics** (when called with empty body):
+- "Jeffrey Epstein court filings case numbers 2019"
+- "Epstein flight logs Lolita Express passenger manifests"
+- "Ghislaine Maxwell trial exhibits evidence"
+- "Epstein black book contacts names"
+- "Epstein victim depositions testimony"
+- "Epstein financial records shell companies"
+- "DOJ Epstein investigation declassified documents"
+- "Epstein island visitor logs records"
 
-### 4. Timeline Page
-- Fetches `intel_entries` that have `published_at` dates
-- Renders them as additional events on the timeline river
-- Color-codes by `fact_check_status` (verified = green, disputed = amber, unverified = slate)
-- Merges with existing demo timeline data
+## Phase 2: Search Page Overhaul
 
-### 5. Nexus Page
-- Fetches `intel_entries` tagged with "epstein" and groups them by category
-- Adds an "Epstein Network" topic universe populated from database entries
-- Entities become nodes on the radial visualization
+Complete redesign of `src/pages/SearchPage.tsx`:
 
-## Removals
-- Delete the `/intelligence` route from `App.tsx`
-- Remove the "INTEL HUB" nav item from `AppSidebar.tsx`
-- The `IntelligenceHub.tsx` page file will be deleted
-- Edge functions remain intact (they can still be called programmatically or by future automation)
+**Header**: "DOCUMENT ARCHIVE" with live stats bar -- total documents, total pages, pages with redactions
 
-## Technical Approach
+**Search Bar**: Debounced input (300ms) calling the `search_documents` RPC. Placeholder: "Search names, case numbers, locations..."
 
-Each page will use `@tanstack/react-query` with `useQuery` to fetch from the `intel_entries` table via the Supabase client. Data merging happens in the component -- demo data stays as the baseline, and live intel entries get appended/merged on top.
+**Filter Chips**: ALL | DOCUMENTS | INTEL | REDACTED ONLY
 
-### Data Flow
-- No manual triggers -- pages load intel data on mount automatically
-- Queries are cached by react-query so navigation between pages is instant
-- Each page only fetches the subset it needs (e.g., Globe only fetches entries with lat/lng)
+**Results List** (two types merged):
+- **Document Page Results**: Document title, page number badge (e.g., "PAGE 14 OF 89"), text snippet with search terms highlighted in cyan, redaction indicator (black bar icon + count like "7 REDACTIONS"), source badge, relevance score
+- **Intel Entry Results**: Matching `intel_entries` shown with fact-check status badges (verified/disputed/unverified)
 
-### Files Modified
-- `src/App.tsx` -- remove Intel Hub route and import
-- `src/components/layout/AppSidebar.tsx` -- remove INTEL HUB nav item
-- `src/pages/Index.tsx` -- add useQuery for intel stats and live feed
-- `src/pages/Graph.tsx` and `src/components/graph/ConnectionWeb.tsx` -- merge intel nodes/edges
-- `src/pages/GlobePage.tsx` -- merge intel locations and heatmap points
-- `src/pages/Timeline.tsx` -- merge intel entries with dates into timeline
-- `src/pages/NexusPage.tsx` and `src/lib/demo-nexus-data.ts` -- add Epstein Network topic universe from DB
+**Page Viewer Modal**: Clicking a document result opens a dialog showing:
+- Full extracted text for that page with search term highlighting
+- Redaction count and visual indicator
+- Prev/next page navigation within the same document
+- Document metadata header (title, source, total pages)
 
-### Files Deleted
-- `src/pages/IntelligenceHub.tsx`
+**Seed Archive Button**: Small button in the header area to trigger the `seed-document-archive` function (one-click to populate the archive)
+
+### Supporting files:
+- `src/hooks/use-document-search.ts` -- debounced search hook using `supabase.rpc("search_documents")` + `intel_entries` ilike query
+- `src/components/search/SearchResults.tsx` -- results list with highlighting and redaction indicators
+- `src/components/search/PageViewerModal.tsx` -- page detail dialog
+
+## Phase 3: Real-Time Subscriptions
+
+**Database migration**: Enable realtime on three tables:
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE intel_entries;
+ALTER PUBLICATION supabase_realtime ADD TABLE documents;
+ALTER PUBLICATION supabase_realtime ADD TABLE document_pages;
+```
+
+**New hook**: `src/hooks/use-intel-realtime.ts`
+- Exports `useIntelEntriesRealtime()` -- wraps `useIntelEntries()` with a Supabase channel subscription
+- On `postgres_changes` INSERT events on `intel_entries`, invalidates the react-query cache via `queryClient.invalidateQueries(["intel_entries"])`
+- Cleans up channel on unmount
+
+**Pages updated** (swap `useIntelEntries` to `useIntelEntriesRealtime`):
+- `src/pages/Index.tsx` (via `useIntelStats` -- will update the hook)
+- `src/pages/GlobePage.tsx`
+- `src/pages/Timeline.tsx`
+- `src/components/graph/ConnectionWeb.tsx`
+- `src/pages/NexusPage.tsx`
+
+## Technical Details
+
+### New Files
+- `supabase/functions/seed-document-archive/index.ts`
+- `src/hooks/use-intel-realtime.ts`
+- `src/hooks/use-document-search.ts`
+- `src/components/search/SearchResults.tsx`
+- `src/components/search/PageViewerModal.tsx`
+
+### Modified Files
+- `src/pages/SearchPage.tsx` -- complete overhaul
+- `src/hooks/use-intel-data.ts` -- add realtime-aware variants
+- `src/pages/Index.tsx` -- use realtime hook
+- `src/pages/GlobePage.tsx` -- use realtime hook
+- `src/pages/Timeline.tsx` -- use realtime hook
+- `src/components/graph/ConnectionWeb.tsx` -- use realtime hook
+- `src/pages/NexusPage.tsx` -- use realtime hook
+- `supabase/config.toml` -- add seed-document-archive function
+
+### Database Migration
+- Enable realtime on `intel_entries`, `documents`, `document_pages`
+
+### No new dependencies needed
+- Uses existing `@tanstack/react-query`, `@supabase/supabase-js`, `@radix-ui/react-dialog`, `lucide-react`, `framer-motion`
+
+### Implementation Sequence
+1. Database migration (enable realtime)
+2. Edge function `seed-document-archive`
+3. Realtime hook + update all pages
+4. Search page overhaul (hooks, components, page)
+5. Call `seed-document-archive` to populate the archive
+
