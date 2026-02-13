@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
 import { Shield, FileText, Archive, HelpCircle, Activity, AlertTriangle, Eye, Users, CheckCircle, AlertOctagon, CircleDot } from "lucide-react";
-import { useIntelStatsRealtime } from "@/hooks/use-intel-realtime";
+import { useIntelStats } from "@/hooks/use-intel-data";
 
 const Index = () => {
-  const { stats, entries, isLoading } = useIntelStatsRealtime();
+  const { stats, entries, isLoading } = useIntelStats();
 
   const statCards = [
     { label: "ACTIVE CLAIMS", value: String(stats.claims), icon: FileText, color: "text-primary" },

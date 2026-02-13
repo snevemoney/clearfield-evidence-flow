@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import { demoNodes, demoLinks, EDGE_COLORS, NODE_COLORS, type GraphNode, type GraphLink } from "@/lib/demo-graph-data";
-import { useIntelEntriesRealtime, useIntelConnectionsRealtime } from "@/hooks/use-intel-realtime";
+import { useIntelEntries, useIntelConnections } from "@/hooks/use-intel-data";
 
 interface ConnectionWebProps {
   onNodeClick: (node: GraphNode | null) => void;
@@ -12,8 +12,8 @@ export function ConnectionWeb({ onNodeClick, filter }: ConnectionWebProps) {
   const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-  const { data: intelEntries = [] } = useIntelEntriesRealtime();
-  const { data: intelConnections = [] } = useIntelConnectionsRealtime();
+  const { data: intelEntries = [] } = useIntelEntries();
+  const { data: intelConnections = [] } = useIntelConnections();
 
   useEffect(() => {
     const updateSize = () => {

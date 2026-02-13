@@ -6,7 +6,7 @@ import { LocationDetailPanel } from "@/components/globe/LocationDetailPanel";
 import { GlobeQueryBar } from "@/components/globe/GlobeQueryBar";
 import { QueryResultPanel, type AiQueryResult } from "@/components/globe/QueryResultPanel";
 import { demoGlobeLocations, demoGlobeArcs, demoHeatmapPoints, CATEGORY_COLORS, ARC_NETWORKS, type GlobeLocation } from "@/lib/demo-globe-data";
-import { useIntelEntriesRealtime } from "@/hooks/use-intel-realtime";
+import { useIntelEntries } from "@/hooks/use-intel-data";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -32,7 +32,7 @@ const GlobePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Live intel data
-  const { data: intelEntries = [] } = useIntelEntriesRealtime();
+  const { data: intelEntries = [] } = useIntelEntries();
 
   // Intel entries with location → merge into globe
   const intelLocations = useMemo(() => {

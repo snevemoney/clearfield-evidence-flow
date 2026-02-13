@@ -5,14 +5,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { RadialVisualization } from "@/components/nexus/RadialVisualization";
 import { NexusDetailPanel } from "@/components/nexus/NexusDetailPanel";
 import { getTopicUniverse, getAllTopicIds, getTopicLabel, RING_COLORS, RING_LABELS, type NexusNode, type TopicUniverse, addDynamicUniverse } from "@/lib/demo-nexus-data";
-import { useIntelEntriesRealtime } from "@/hooks/use-intel-realtime";
+import { useIntelEntries } from "@/hooks/use-intel-data";
 
 const NexusPage = () => {
   const [currentTopic, setCurrentTopic] = useState("surveillance");
   const [history, setHistory] = useState<string[]>([]);
   const [selectedNode, setSelectedNode] = useState<NexusNode | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: intelEntries = [] } = useIntelEntriesRealtime();
+  const { data: intelEntries = [] } = useIntelEntries();
 
   // Build dynamic "Epstein Network" universe from intel entries tagged with "epstein"
   useMemo(() => {

@@ -20,9 +20,3 @@ verify_jwt = false
 
 [functions.fact-check]
 verify_jwt = false
-
-[functions.ingest-bulk-documents]
-verify_jwt = false
-
-[functions.search-documents]
-verify_jwt = false
