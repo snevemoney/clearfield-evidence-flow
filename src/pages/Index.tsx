@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Shield, FileText, Archive, HelpCircle, Activity, AlertTriangle, Eye, Users, CheckCircle, AlertOctagon, CircleDot } from "lucide-react";
-import { useIntelStats } from "@/hooks/use-intel-data";
+import { useIntelStatsRealtime as useIntelStats } from "@/hooks/use-intel-realtime";
 
 const Index = () => {
   const { stats, entries, isLoading } = useIntelStats();
