@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.seed-document-archive]
 verify_jwt = false
+
+[functions.bridge-import]
+verify_jwt = false
+
+[functions.find-contradictions]
+verify_jwt = false
