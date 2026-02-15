@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useIntelEntries, useIntelConnections, useIntelStats } from "./use-intel-data";
 
-function useRealtimeInvalidation() {
+export function useRealtimeInvalidation() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -17,6 +17,28 @@ function useRealtimeInvalidation() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "document_pages" }, () => {
         queryClient.invalidateQueries({ queryKey: ["document_pages"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "evidence" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["evidence"] });
+        queryClient.invalidateQueries({ queryKey: ["evidence_list"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "unknowns" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["unknowns"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "timeline_events" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["timeline_events"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "contradictions" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["contradictions"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "claims" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["claims"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "claim_evidence" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["claim_evidence"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "context_notes" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["context_notes"] });
       })
       .subscribe();
 

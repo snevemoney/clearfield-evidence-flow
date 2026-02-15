@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
 
 const CATEGORIES = [
   { value: "known_fact", label: "KNOWN FACTS", color: "text-success border-success/30 bg-success/10" },
@@ -28,6 +29,7 @@ function getCategoryLabel(cat: string) {
 }
 
 const Unknowns = () => {
+  useRealtimeInvalidation();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");

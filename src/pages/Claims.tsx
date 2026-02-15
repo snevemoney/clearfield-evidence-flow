@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { CitationExport } from "@/components/export/CitationExport";
+import { useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
 const LABELS = [
   { value: "alleged", color: "text-yellow-400 border-yellow-400/30 bg-yellow-400/10" },
   { value: "unsupported", color: "text-muted-foreground border-border bg-muted" },
@@ -112,6 +113,7 @@ const LinkEvidenceDialog = ({ claimId, existingEvidenceIds }: { claimId: string;
 };
 
 const Claims = () => {
+  useRealtimeInvalidation();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
