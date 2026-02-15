@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Plus, ExternalLink, Link2, Tag } from "lucide-react";
+import { FileText, Plus, ExternalLink, Link2, Tag, Search, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { CitationExport } from "@/components/export/CitationExport";
-
 const LABELS = [
   { value: "alleged", color: "text-yellow-400 border-yellow-400/30 bg-yellow-400/10" },
   { value: "unsupported", color: "text-muted-foreground border-border bg-muted" },
@@ -22,6 +21,95 @@ const LABELS = [
 function getLabelStyle(label: string) {
   return LABELS.find((l) => l.value === label)?.color || "text-muted-foreground border-border bg-muted";
 }
+
+const LinkEvidenceDialog = ({ claimId, existingEvidenceIds }: { claimId: string; existingEvidenceIds: string[] }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const queryClient = useQueryClient();
+
+  const { data: allEvidence = [] } = useQuery({
+    queryKey: ["evidence"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("evidence").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const linkEvidence = useMutation({
+    mutationFn: async (evidenceId: string) => {
+      const { error } = await supabase.from("claim_evidence").insert({ claim_id: claimId, evidence_id: evidenceId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["claim_evidence"] });
+      toast({ title: "Evidence linked", description: "Evidence object attached to claim." });
+    },
+    onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const filtered = allEvidence.filter((ev) => {
+    if (existingEvidenceIds.includes(ev.id)) return false;
+    if (!search) return true;
+    return ev.title.toLowerCase().includes(search.toLowerCase());
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button className="font-mono text-[10px] tracking-wider text-primary hover:text-primary/80 flex items-center gap-1 transition-colors">
+          <Link2 className="h-3 w-3" />LINK EVIDENCE
+        </button>
+      </DialogTrigger>
+      <DialogContent className="bg-card border-border max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-mono tracking-widest text-primary">LINK EVIDENCE TO CLAIM</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search evidence objects..."
+              className="font-mono text-xs pl-9"
+            />
+          </div>
+          {filtered.length === 0 ? (
+            <p className="font-mono text-[10px] text-muted-foreground/50 text-center py-6">
+              {allEvidence.length === 0 ? "NO EVIDENCE OBJECTS EXIST YET" : "NO MATCHING EVIDENCE"}
+            </p>
+          ) : (
+            <div className="space-y-1.5 max-h-[50vh] overflow-y-auto">
+              {filtered.slice(0, 20).map((ev) => (
+                <div key={ev.id} className="border border-border rounded-sm p-3 flex items-start justify-between gap-3 hover:border-primary/30 transition-all">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-mono text-[10px] tracking-wider uppercase px-1.5 py-0.5 rounded-sm border border-success/30 text-success bg-success/10">
+                        {ev.source_type.replace("_", " ")}
+                      </span>
+                    </div>
+                    <p className="font-mono text-xs text-foreground truncate">{ev.title}</p>
+                    {ev.author && <p className="font-mono text-[10px] text-muted-foreground/60">{ev.author}</p>}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="font-mono text-[10px] tracking-wider shrink-0 h-7 px-2"
+                    onClick={() => linkEvidence.mutate(ev.id)}
+                    disabled={linkEvidence.isPending}
+                  >
+                    <Link2 className="h-3 w-3 mr-1" />LINK
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const Claims = () => {
   const [open, setOpen] = useState(false);
@@ -65,10 +153,10 @@ const Claims = () => {
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const evidenceCount = (claimId: string) => claimEvidence.filter((ce) => ce.claim_id === claimId).length;
+  const evidenceForClaim = (claimId: string) => claimEvidence.filter((ce) => ce.claim_id === claimId);
+  const evidenceCount = (claimId: string) => evidenceForClaim(claimId).length;
 
   const filtered = filterLabel ? claims.filter((c) => c.label === filterLabel) : claims;
-
   return (
     <div className="min-h-screen p-6 grid-bg">
       <div className="flex items-center justify-between mb-6">
@@ -148,7 +236,8 @@ const Claims = () => {
       ) : (
         <div className="space-y-2">
           {filtered.map((claim) => {
-            const evCount = evidenceCount(claim.id);
+            const evLinks = evidenceForClaim(claim.id);
+            const evCount = evLinks.length;
             return (
               <div key={claim.id} className="border border-border rounded-sm bg-card p-4 hover:border-primary/30 transition-all">
                 <div className="flex items-start justify-between gap-4">
@@ -168,6 +257,9 @@ const Claims = () => {
                     </div>
                     <h3 className="font-mono text-sm text-foreground mb-1">{claim.title}</h3>
                     <p className="font-mono text-xs text-muted-foreground line-clamp-2">{claim.content}</p>
+                    <div className="mt-2">
+                      <LinkEvidenceDialog claimId={claim.id} existingEvidenceIds={evLinks.map((l) => l.evidence_id)} />
+                    </div>
                   </div>
                   <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0">
                     {new Date(claim.created_at).toLocaleDateString()}
