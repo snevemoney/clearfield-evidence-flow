@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import { demoNodes, demoLinks, EDGE_COLORS, NODE_COLORS, type GraphNode } from "@/lib/demo-graph-data";
+import * as d3 from "d3-force";
 
 interface CircuitBoardProps {
   onNodeClick: (node: GraphNode | null) => void;
@@ -8,8 +9,11 @@ interface CircuitBoardProps {
 }
 
 export function CircuitBoard({ onNodeClick, filter }: CircuitBoardProps) {
+  const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [stabilized, setStabilized] = useState(false);
 
   useEffect(() => {
     const updateSize = () => {
@@ -36,44 +40,87 @@ export function CircuitBoard({ onNodeClick, filter }: CircuitBoardProps) {
     links: filteredLinks.map((l) => ({ ...l })),
   };
 
+  // Build neighbor map for hover highlighting
+  const neighborMap = new Map<string, Set<string>>();
+  filteredLinks.forEach((l) => {
+    const s = typeof l.source === "string" ? l.source : (l.source as any).id;
+    const t = typeof l.target === "string" ? l.target : (l.target as any).id;
+    if (!neighborMap.has(s)) neighborMap.set(s, new Set());
+    if (!neighborMap.has(t)) neighborMap.set(t, new Set());
+    neighborMap.get(s)!.add(t);
+    neighborMap.get(t)!.add(s);
+  });
+
+  const isHighlighted = (nodeId: string) => {
+    if (!hoveredNode) return true;
+    if (nodeId === hoveredNode) return true;
+    return neighborMap.get(hoveredNode)?.has(nodeId) || false;
+  };
+
+  const isLinkHighlighted = (link: any) => {
+    if (!hoveredNode) return true;
+    const s = typeof link.source === "string" ? link.source : link.source?.id;
+    const t = typeof link.target === "string" ? link.target : link.target?.id;
+    return s === hoveredNode || t === hoveredNode;
+  };
+
+  // Configure forces
+  useEffect(() => {
+    if (!graphRef.current) return;
+    const fg = graphRef.current;
+    fg.d3Force("charge")?.strength(-400);
+    fg.d3Force("link")?.distance(120);
+    fg.d3Force("collide", d3.forceCollide().radius(30));
+    fg.d3Force("center", d3.forceCenter(0, 0).strength(0.05));
+  }, [graphData]);
+
+  // Zoom to fit after stabilization
+  const handleEngineStop = useCallback(() => {
+    if (!stabilized && graphRef.current) {
+      graphRef.current.zoomToFit(400, 60);
+      setStabilized(true);
+    }
+  }, [stabilized]);
+
   const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const size = 5 + (node.sourceCount || 5) * 0.25;
     const color = NODE_COLORS[node.type] || "#64748b";
     const x = node.x || 0;
     const y = node.y || 0;
+    const highlighted = isHighlighted(node.id);
+    const isHovered = node.id === hoveredNode;
 
-    // Circuit component: outer border
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
+    ctx.globalAlpha = highlighted ? 1 : 0.15;
+
+    // Measure label to size the rectangle
+    const fontSize = isHovered ? Math.max(10 / globalScale, 3) : Math.max(8 / globalScale, 2);
+    ctx.font = `${fontSize}px "JetBrains Mono", monospace`;
+    const labelWidth = ctx.measureText(node.label).width;
+    const w = Math.max(labelWidth + 16, 30);
+    const h = 20;
+
+    // Circuit component: outer border with glow
     ctx.shadowColor = color;
-    ctx.shadowBlur = 8;
-
-    // All nodes as rectangles (circuit components)
-    const w = size * 2.5;
-    const h = size * 1.8;
+    ctx.shadowBlur = isHovered ? 14 : 8;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = isHovered ? 2 : 1;
     ctx.strokeRect(x - w / 2, y - h / 2, w, h);
 
     // Inner fill
-    ctx.fillStyle = `${color}22`;
+    ctx.fillStyle = `${color}18`;
     ctx.fillRect(x - w / 2, y - h / 2, w, h);
-
-    // Connection points (circuit pins)
-    ctx.fillStyle = color;
-    const pinSize = 1.5;
-    // Top pin
-    ctx.fillRect(x - pinSize / 2, y - h / 2 - 3, pinSize, 3);
-    // Bottom pin
-    ctx.fillRect(x - pinSize / 2, y + h / 2, pinSize, 3);
-    // Left pin
-    ctx.fillRect(x - w / 2 - 3, y - pinSize / 2, 3, pinSize);
-    // Right pin
-    ctx.fillRect(x + w / 2, y - pinSize / 2, 3, pinSize);
 
     ctx.shadowBlur = 0;
 
+    // Connection pins (top, bottom, left, right)
+    ctx.fillStyle = color;
+    const pinW = 2;
+    const pinH = 5;
+    ctx.fillRect(x - pinW / 2, y - h / 2 - pinH, pinW, pinH);
+    ctx.fillRect(x - pinW / 2, y + h / 2, pinW, pinH);
+    ctx.fillRect(x - w / 2 - pinH, y - pinW / 2, pinH, pinW);
+    ctx.fillRect(x + w / 2, y - pinW / 2, pinH, pinW);
+
     // Label inside
-    const fontSize = Math.max(8 / globalScale, 2);
-    ctx.font = `${fontSize}px "JetBrains Mono", monospace`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = color;
@@ -82,9 +129,11 @@ export function CircuitBoard({ onNodeClick, filter }: CircuitBoardProps) {
     // Type indicator below
     const typeFontSize = Math.max(6 / globalScale, 1.5);
     ctx.font = `${typeFontSize}px "JetBrains Mono", monospace`;
-    ctx.fillStyle = `${color}88`;
-    ctx.fillText(node.type.toUpperCase(), x, y + h / 2 + typeFontSize + 4);
-  }, []);
+    ctx.fillStyle = `${color}77`;
+    ctx.fillText(node.type.toUpperCase(), x, y + h / 2 + typeFontSize + 6);
+
+    ctx.globalAlpha = 1;
+  }, [hoveredNode]);
 
   const linkCanvasObject = useCallback((link: any, ctx: CanvasRenderingContext2D) => {
     const color = EDGE_COLORS[link.type] || "#1e293b";
@@ -92,14 +141,17 @@ export function CircuitBoard({ onNodeClick, filter }: CircuitBoardProps) {
     const end = link.target;
     if (!start || !end || typeof start.x !== "number") return;
 
+    const highlighted = isLinkHighlighted(link);
+    ctx.globalAlpha = highlighted ? 0.5 : 0.06;
+
     ctx.strokeStyle = color;
-    ctx.lineWidth = 0.5;
-    ctx.globalAlpha = 0.4;
+    ctx.lineWidth = 0.8;
     ctx.shadowColor = color;
     ctx.shadowBlur = 3;
 
-    // Circuit board style: right-angle paths
-    const midX = (start.x + end.x) / 2;
+    // Right-angle path with offset to avoid overlap
+    const hash = ((start.x * 7 + end.y * 13) | 0) % 20 - 10;
+    const midX = (start.x + end.x) / 2 + hash;
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(midX, start.y);
@@ -107,23 +159,20 @@ export function CircuitBoard({ onNodeClick, filter }: CircuitBoardProps) {
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
 
-    // Data flow dot
-    const t = (Date.now() % 3000) / 3000;
-    const dotX = start.x + (end.x - start.x) * t;
-    const dotY = start.y + (end.y - start.y) * t;
+    // Link type dot at midpoint
     ctx.fillStyle = color;
-    ctx.globalAlpha = 0.8;
     ctx.beginPath();
-    ctx.arc(dotX, dotY, 1.5, 0, 2 * Math.PI);
+    ctx.arc(midX, (start.y + end.y) / 2, 2.5, 0, 2 * Math.PI);
     ctx.fill();
 
-    ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
-  }, []);
+    ctx.globalAlpha = 1;
+  }, [hoveredNode]);
 
   return (
     <div ref={containerRef} className="w-full h-full">
       <ForceGraph2D
+        ref={graphRef}
         graphData={graphData}
         width={dimensions.width}
         height={dimensions.height}
@@ -131,11 +180,14 @@ export function CircuitBoard({ onNodeClick, filter }: CircuitBoardProps) {
         nodeCanvasObject={nodeCanvasObject}
         linkCanvasObject={linkCanvasObject}
         onNodeClick={(node: any) => onNodeClick(node as GraphNode)}
+        onNodeHover={(node: any) => setHoveredNode(node?.id || null)}
         onBackgroundClick={() => onNodeClick(null)}
         nodeId="id"
         cooldownTicks={100}
+        warmupTicks={50}
         d3AlphaDecay={0.01}
-        d3VelocityDecay={0.4}
+        d3VelocityDecay={0.5}
+        onEngineStop={handleEngineStop}
         enableZoomInteraction={true}
         enablePanInteraction={true}
       />
