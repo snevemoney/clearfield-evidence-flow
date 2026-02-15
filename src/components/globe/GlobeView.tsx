@@ -144,7 +144,7 @@ export function GlobeView({ locations, arcs, heatmapPoints, onLocationClick, fil
   );
 
   return (
-    <div ref={containerRef} className="w-full h-full">
+    <div ref={containerRef} className="w-full h-full absolute inset-0" style={{ zIndex: 1 }}>
       <Globe
         ref={globeRef}
         width={dimensions.width}

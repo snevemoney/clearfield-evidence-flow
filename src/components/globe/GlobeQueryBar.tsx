@@ -27,7 +27,7 @@ export function GlobeQueryBar({ onQuery, isLoading }: GlobeQueryBarProps) {
   };
 
   return (
-    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 w-full max-w-xl px-4">
+    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 w-full max-w-xl px-4 pointer-events-auto" style={{ zIndex: 50 }}>
       {/* Example chips */}
       <div className="flex flex-wrap gap-1.5 justify-center">
         {EXAMPLE_CHIPS.map((chip) => (
