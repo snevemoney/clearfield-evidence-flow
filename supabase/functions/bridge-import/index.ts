@@ -75,7 +75,7 @@ serve(async (req) => {
                       type: "object",
                       properties: {
                         title: { type: "string" },
-                        source_type: { type: "string", enum: ["news", "court_filing", "testimony", "document", "social_media", "academic", "other"] },
+                        source_type: { type: "string", enum: ["news", "court_filing", "government_doc", "academic_paper", "media_transcript", "dataset", "historical_record"] },
                         author: { type: "string" },
                         excerpt: { type: "string", description: "Key excerpt, max 500 chars" },
                         credibility: { type: "string", enum: ["primary", "secondary", "tertiary"] },
@@ -134,9 +134,12 @@ serve(async (req) => {
         const structured = JSON.parse(toolCall.function.arguments);
 
         // Step 3: Insert evidence
+        const validSourceTypes = ["news", "court_filing", "government_doc", "academic_paper", "media_transcript", "dataset", "historical_record"];
+        const sourceType = validSourceTypes.includes(structured.evidence.source_type) ? structured.evidence.source_type : "news";
+
         const { data: evidenceRow, error: evErr } = await supabase.from("evidence").insert({
           title: structured.evidence.title,
-          source_type: structured.evidence.source_type || "news",
+          source_type: sourceType,
           author: structured.evidence.author || null,
           excerpt: structured.evidence.excerpt || null,
           credibility: structured.evidence.credibility || "secondary",
