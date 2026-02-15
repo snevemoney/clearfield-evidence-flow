@@ -1,9 +1,14 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Shield, FileText, Archive, HelpCircle, Activity, AlertTriangle, Eye, Users, CheckCircle, AlertOctagon, CircleDot } from "lucide-react";
 import { useIntelStatsRealtime as useIntelStats } from "@/hooks/use-intel-realtime";
+import { IntelDetailModal } from "@/components/intel/IntelDetailModal";
+import type { IntelEntry } from "@/hooks/use-intel-data";
 
 const Index = () => {
   const { stats, entries, isLoading } = useIntelStats();
+  const [selectedEntry, setSelectedEntry] = useState<IntelEntry | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const statCards = [
     { label: "ACTIVE CLAIMS", value: String(stats.claims), icon: FileText, color: "text-primary" },
@@ -104,7 +109,11 @@ const Index = () => {
               {recentFeed.map((entry) => {
                 const StatusIcon = statusIcon[entry.fact_check_status] || CircleDot;
                 return (
-                  <div key={entry.id} className="px-4 py-3 hover:bg-secondary/30 transition-all">
+                  <button
+                    key={entry.id}
+                    className="w-full text-left px-4 py-3 hover:bg-secondary/30 transition-all cursor-pointer focus:outline-none focus:bg-secondary/40"
+                    onClick={() => { setSelectedEntry(entry as IntelEntry); setModalOpen(true); }}
+                  >
                     <div className="flex items-start gap-3">
                       <StatusIcon className={`h-4 w-4 mt-0.5 shrink-0 ${statusColor[entry.fact_check_status]?.split(" ")[0] || "text-slate-400"}`} />
                       <div className="flex-1 min-w-0">
@@ -125,7 +134,7 @@ const Index = () => {
                         {new Date(entry.ingested_at).toLocaleDateString()}
                       </span>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -191,6 +200,8 @@ const Index = () => {
           It provides structure, permanence, and context so that truth can emerge through open challenge and evidence.
         </p>
       </motion.div>
+
+      <IntelDetailModal entry={selectedEntry} open={modalOpen} onOpenChange={setModalOpen} />
     </div>
   );
 };
