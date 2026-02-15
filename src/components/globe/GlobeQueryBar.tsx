@@ -33,7 +33,7 @@ export function GlobeQueryBar({ onQuery, isLoading }: GlobeQueryBarProps) {
         {EXAMPLE_CHIPS.map((chip) => (
           <button
             key={chip}
-            onClick={() => { setInput(chip); inputRef.current?.focus(); }}
+            onClick={() => { onQuery(chip); }}
             disabled={isLoading}
             className="px-2.5 py-1 rounded-sm font-mono text-[9px] tracking-wider text-muted-foreground/70 border border-border/40 hover:border-primary/50 hover:text-primary transition-all bg-card/30 backdrop-blur-sm disabled:opacity-40"
           >
