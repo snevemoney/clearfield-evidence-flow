@@ -18,6 +18,7 @@ interface ConnectionWebProps {
 export const ConnectionWeb = forwardRef<GraphHandle, ConnectionWebProps>(function ConnectionWeb({ onNodeClick, filter, onNodesReady }, ref) {
   const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const graphDataRef = useRef<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [stabilized, setStabilized] = useState(false);
@@ -75,8 +76,8 @@ export const ConnectionWeb = forwardRef<GraphHandle, ConnectionWebProps>(functio
     focusNode: (nodeId: string) => {
       if (!graphRef.current) return;
       const fg = graphRef.current;
-      const node = fg.graphData().nodes.find((n: any) => n.id === nodeId);
-      if (node) {
+      const node = graphDataRef.current.nodes.find((n: any) => n.id === nodeId);
+      if (node && typeof node.x === 'number') {
         fg.centerAt(node.x, node.y, 600);
         fg.zoom(3, 600);
         onNodeClick(node as GraphNode);
@@ -91,10 +92,14 @@ export const ConnectionWeb = forwardRef<GraphHandle, ConnectionWebProps>(functio
     (l) => filteredNodeIds.has(l.source as string) && filteredNodeIds.has(l.target as string)
   );
 
-  const graphData = useMemo(() => ({
-    nodes: filteredNodes.map((n) => ({ ...n })),
-    links: filteredLinks.map((l) => ({ ...l })),
-  }), [filteredNodes, filteredLinks]);
+  const graphData = useMemo(() => {
+    const data = {
+      nodes: filteredNodes.map((n) => ({ ...n })),
+      links: filteredLinks.map((l) => ({ ...l })),
+    };
+    graphDataRef.current = data;
+    return data;
+  }, [filteredNodes, filteredLinks]);
 
   // Build neighbor map for hover highlighting
   const neighborMap = useMemo(() => {
