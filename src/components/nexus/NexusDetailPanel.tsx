@@ -67,7 +67,7 @@ export function NexusDetailPanel({ node, onClose, onNavigate }: NexusDetailPanel
           <div>
             <h4 className="font-mono text-[10px] tracking-widest text-muted-foreground mb-2">CROSS-REFERENCE</h4>
             <button
-              onClick={() => navigate(`/globe?search=${encodeURIComponent(node.label)}`)}
+              onClick={() => navigate(`/visualize?mode=globe&search=${encodeURIComponent(node.label)}`)}
               className="flex items-center gap-2 w-full border border-border rounded-sm p-2 bg-secondary/30 hover:bg-secondary/60 transition-all mb-1.5"
             >
               <Globe className="h-3 w-3 text-primary" />
