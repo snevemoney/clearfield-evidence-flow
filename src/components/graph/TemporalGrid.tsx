@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
 import { NODE_COLORS, type GraphNode } from "@/lib/demo-graph-data";
-import { useIntelEntriesRealtime as useIntelEntries } from "@/hooks/use-intel-realtime";
+import { useIntelEntriesRealtime as useIntelEntries, useIntelConnectionsRealtime as useIntelConnections } from "@/hooks/use-intel-realtime";
 import type { IntelEntry } from "@/hooks/use-intel-data";
 import type { GraphHandle } from "@/components/graph/ConnectionWeb";
 import { Slider } from "@/components/ui/slider";
@@ -51,6 +51,7 @@ export const TemporalGrid = forwardRef<GraphHandle, TemporalGridProps>(function 
   const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
 
   const { data: intelEntries = [] } = useIntelEntries();
+  const { data: intelConnections = [] } = useIntelConnections();
 
   // Resize
   useEffect(() => {
@@ -237,6 +238,43 @@ export const TemporalGrid = forwardRef<GraphHandle, TemporalGridProps>(function 
     ctx.fillText("CATEGORY", 0, 0);
     ctx.restore();
 
+    // Draw connection wires
+    const posMap = new Map(nodePositions.map((p) => [p.entry.id, p]));
+    intelConnections.forEach((conn) => {
+      const src = posMap.get(conn.source_entry_id);
+      const tgt = posMap.get(conn.target_entry_id);
+      if (!src || !tgt) return;
+
+      const wireColor = conn.connection_type === "contradiction" ? "#ef4444"
+        : conn.connection_type === "financial" ? "#eab308"
+        : conn.connection_type === "social" ? "#a855f7"
+        : "#00d4ff";
+
+      ctx.strokeStyle = wireColor;
+      ctx.lineWidth = 0.8;
+      ctx.globalAlpha = 0.35;
+      ctx.shadowColor = wireColor;
+      ctx.shadowBlur = 4;
+
+      // Circuit-board style: right-angle path
+      const midX = (src.x + tgt.x) / 2;
+      ctx.beginPath();
+      ctx.moveTo(src.x, src.y);
+      ctx.lineTo(midX, src.y);
+      ctx.lineTo(midX, tgt.y);
+      ctx.lineTo(tgt.x, tgt.y);
+      ctx.stroke();
+
+      // Junction dot at bend
+      ctx.fillStyle = wireColor;
+      ctx.beginPath();
+      ctx.arc(midX, (src.y + tgt.y) / 2, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    });
+
     // Draw nodes
     nodePositions.forEach(({ entry, x, y, node }) => {
       const color = NODE_COLORS[node.type] || "#64748b";
@@ -302,7 +340,7 @@ export const TemporalGrid = forwardRef<GraphHandle, TemporalGridProps>(function 
     }
 
     ctx.restore();
-  }, [dimensions, nodePositions, hoveredId, timeBounds, timeRange, plotW, plotH, laneHeight, laneDensity, pan, intelEntries.length]);
+  }, [dimensions, nodePositions, hoveredId, timeBounds, timeRange, plotW, plotH, laneHeight, laneDensity, pan, intelEntries.length, intelConnections]);
 
   // Hit detection
   const handleCanvasMove = useCallback((e: React.MouseEvent) => {
