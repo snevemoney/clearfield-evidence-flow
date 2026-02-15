@@ -5,8 +5,10 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
 
 const Contradictions = () => {
+  useRealtimeInvalidation();
   const [scanning, setScanning] = useState(false);
   const [topicFilter, setTopicFilter] = useState("");
 

@@ -10,11 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { CitationExport } from "@/components/export/CitationExport";
+import { useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
 
 const SOURCE_TYPES = ["news", "court_filing", "testimony", "document", "social_media", "academic", "other"];
 const CREDIBILITY = ["primary", "secondary", "tertiary"];
 
 const Evidence = () => {
+  useRealtimeInvalidation();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [sourceType, setSourceType] = useState("news");
