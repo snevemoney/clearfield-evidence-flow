@@ -2,7 +2,9 @@ import { useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, ZoomIn, ZoomOut, X, FileText, Eye } from "lucide-react";
 import { timelineData, type TimelineEvent } from "@/lib/demo-graph-data";
-import { useIntelEntriesRealtime as useIntelEntries } from "@/hooks/use-intel-realtime";
+import { useIntelEntriesRealtime as useIntelEntries, useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const typeStyles: Record<string, { color: string; bg: string; border: string }> = {
   verified: { color: "text-emerald-400", bg: "bg-emerald-500", border: "border-emerald-500/40" },
@@ -10,13 +12,30 @@ const typeStyles: Record<string, { color: string; bg: string; border: string }> 
   unknown: { color: "text-slate-500", bg: "bg-slate-500", border: "border-slate-500/40" },
   redacted: { color: "text-red-500", bg: "bg-red-500", border: "border-red-500/40" },
   unverified: { color: "text-slate-500", bg: "bg-slate-500", border: "border-slate-500/40" },
+  candidate: { color: "text-cyan-400", bg: "bg-cyan-500", border: "border-cyan-500/40" },
 };
+
+function useTimelineEvents() {
+  useRealtimeInvalidation();
+  return useQuery({
+    queryKey: ["timeline_events"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("timeline_events")
+        .select("*")
+        .order("event_date", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
 
 const Timeline = () => {
   const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState<TimelineEvent | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { data: intelEntries = [] } = useIntelEntries();
+  const { data: dbTimelineEvents = [] } = useTimelineEvents();
 
   // Convert intel entries with dates into timeline events
   const intelTimelineEvents: TimelineEvent[] = useMemo(() => {
@@ -25,7 +44,7 @@ const Timeline = () => {
       .map((e) => ({
         id: `intel-${e.id}`,
         title: e.title,
-        date: e.published_at!.slice(0, 7), // YYYY-MM format
+        date: e.published_at!.slice(0, 7),
         type: (e.fact_check_status === "verified" ? "verified" : e.fact_check_status === "disputed" ? "disputed" : "unknown") as TimelineEvent["type"],
         branch: "main",
         evidenceCount: e.credibility_score ? Math.round(e.credibility_score / 10) : 0,
@@ -33,11 +52,35 @@ const Timeline = () => {
       }));
   }, [intelEntries]);
 
-  const allEvents = useMemo(() => [...timelineData, ...intelTimelineEvents], [intelTimelineEvents]);
+  // Convert DB timeline_events into TimelineEvent format
+  const dbEvents: TimelineEvent[] = useMemo(() => {
+    return dbTimelineEvents.map((te: any) => ({
+      id: `tl-${te.id}`,
+      title: te.title,
+      date: (te.event_date || "").slice(0, 7),
+      type: (te.event_type === "verified" ? "verified" : te.event_type === "disputed" ? "disputed" : te.event_type === "redacted" ? "redacted" : "unknown") as TimelineEvent["type"],
+      branch: te.branch || "main",
+      evidenceCount: te.evidence_id ? 1 : 0,
+      description: te.description || te.title,
+    }));
+  }, [dbTimelineEvents]);
+
+  // Deduplicate by title similarity
+  const allEvents = useMemo(() => {
+    const combined = [...timelineData, ...dbEvents, ...intelTimelineEvents];
+    const seen = new Set<string>();
+    return combined.filter((e) => {
+      const key = e.title.toLowerCase().slice(0, 30);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [dbEvents, intelTimelineEvents]);
 
   const mainEvents = allEvents.filter((e) => e.branch === "main").sort((a, b) => a.date.localeCompare(b.date));
   const shadowEvents = allEvents.filter((e) => e.branch === "shadow").sort((a, b) => a.date.localeCompare(b.date));
 
+  const liveCount = dbEvents.length + intelTimelineEvents.length;
   const eventWidth = 180 * zoom;
   const totalWidth = Math.max(mainEvents.length * eventWidth + 200, 1200);
 
@@ -51,16 +94,16 @@ const Timeline = () => {
           <span className="font-mono text-[10px] text-muted-foreground ml-2">
             // FLOWING NARRATIVE STREAMS
           </span>
-          {intelTimelineEvents.length > 0 && (
+          {liveCount > 0 && (
             <span className="font-mono text-[10px] text-emerald-400 ml-2">
-              +{intelTimelineEvents.length} LIVE
+              +{liveCount} LIVE
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-2">
           {/* Legend */}
-          {Object.entries(typeStyles).filter(([k]) => k !== "unverified").map(([type, style]) => (
+          {Object.entries(typeStyles).filter(([k]) => !["unverified", "candidate"].includes(k)).map(([type, style]) => (
             <div key={type} className="flex items-center gap-1 mr-2">
               <div className={`h-2 w-2 rounded-full ${style.bg}`} />
               <span className="font-mono text-[8px] text-muted-foreground tracking-wider">{type.toUpperCase()}</span>
@@ -102,7 +145,7 @@ const Timeline = () => {
             const style = typeStyles[event.type] || typeStyles.unknown;
             const xPos = 80 + i * eventWidth;
             const isRedacted = event.type === "redacted";
-            const isIntel = event.id.startsWith("intel-");
+            const isLive = event.id.startsWith("intel-") || event.id.startsWith("tl-");
 
             return (
               <motion.div
@@ -123,7 +166,7 @@ const Timeline = () => {
                   onClick={() => setSelected(event)}
                   className={`border ${style.border} rounded-sm p-3 bg-card/60 hover:bg-card/90 transition-all text-left ${
                     isRedacted ? "border-dashed" : ""
-                  } ${isIntel ? "border-l-2 border-l-emerald-500/60" : ""}`}
+                  } ${isLive ? "border-l-2 border-l-emerald-500/60" : ""}`}
                   style={{ width: eventWidth - 20 }}
                 >
                   <div className="flex items-center gap-1.5 mb-1.5">
@@ -131,7 +174,7 @@ const Timeline = () => {
                     <span className={`font-mono text-[8px] tracking-widest ${style.color}`}>
                       {event.type.toUpperCase()}
                     </span>
-                    {isIntel && (
+                    {isLive && (
                       <span className="font-mono text-[7px] tracking-widest text-emerald-400 ml-auto">LIVE</span>
                     )}
                   </div>
@@ -230,7 +273,7 @@ const Timeline = () => {
                   <span className="font-mono text-[10px] text-primary">{selected.evidenceCount} SOURCES</span>
                 </div>
                 <span className="font-mono text-[9px] text-muted-foreground/50">
-                  BRANCH: {selected.branch.toUpperCase()}
+                  BRANCH: {(selected.branch || "main").toUpperCase()}
                 </span>
               </div>
             </motion.div>
