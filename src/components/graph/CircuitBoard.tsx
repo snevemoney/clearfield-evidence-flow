@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useCallback, useRef, useState, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import { demoNodes, demoLinks, EDGE_COLORS, NODE_COLORS, type GraphNode } from "@/lib/demo-graph-data";
 import * as d3 from "d3-force";
@@ -13,6 +13,7 @@ interface CircuitBoardProps {
 export const CircuitBoard = forwardRef<GraphHandle, CircuitBoardProps>(function CircuitBoard({ onNodeClick, filter, onNodesReady }, ref) {
   const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const graphDataRef = useRef<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [stabilized, setStabilized] = useState(false);
@@ -37,8 +38,8 @@ export const CircuitBoard = forwardRef<GraphHandle, CircuitBoardProps>(function 
     focusNode: (nodeId: string) => {
       if (!graphRef.current) return;
       const fg = graphRef.current;
-      const node = fg.graphData().nodes.find((n: any) => n.id === nodeId);
-      if (node) {
+      const node = graphDataRef.current.nodes.find((n: any) => n.id === nodeId);
+      if (node && typeof node.x === 'number') {
         fg.centerAt(node.x, node.y, 600);
         fg.zoom(3, 600);
         onNodeClick(node as GraphNode);
@@ -53,10 +54,14 @@ export const CircuitBoard = forwardRef<GraphHandle, CircuitBoardProps>(function 
     (l) => filteredNodeIds.has(l.source as string) && filteredNodeIds.has(l.target as string)
   );
 
-  const graphData = {
-    nodes: filteredNodes.map((n) => ({ ...n })),
-    links: filteredLinks.map((l) => ({ ...l })),
-  };
+  const graphData = useMemo(() => {
+    const data = {
+      nodes: filteredNodes.map((n) => ({ ...n })),
+      links: filteredLinks.map((l) => ({ ...l })),
+    };
+    graphDataRef.current = data;
+    return data;
+  }, [filteredNodes, filteredLinks]);
 
   // Build neighbor map for hover highlighting
   const neighborMap = new Map<string, Set<string>>();
