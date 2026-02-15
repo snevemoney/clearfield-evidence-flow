@@ -1,124 +1,62 @@
 
 
-# Consolidate CLEARFIELD from 14 Pages to 7
+# Redesign Graph Views as Detective Investigation Boards
 
-## Current Problem
-The sidebar has 14 navigation items (plus Auth), which creates cognitive overload and makes it hard to find what you need. Many pages serve closely related purposes and share the same underlying data.
+## Problem
+Both graph views (Web and Intel/Circuit) suffer from poor spacing:
+- **The Web**: Demo nodes cluster tightly in the center while imported intel nodes scatter far away with no connections to the core cluster. No visual hierarchy.
+- **Intel View (Circuit)**: Nodes overlap and stack on top of each other. Labels are unreadable.
+- Neither view looks like a proper detective investigation board with clear connections, readable labels, and good spacing.
 
-## Proposed Consolidation
+## Solution
+Tune the d3 force simulation parameters and redesign the canvas rendering to create a clean, well-spaced "detective web" aesthetic -- think red string on a corkboard, with clear node separation, curved connection lines, and visual hierarchy based on importance.
 
-```text
-BEFORE (14 pages)                    AFTER (7 pages)
----------------------                ---------------------
-DASHBOARD                       -->  DASHBOARD (unchanged)
-CLAIMS                          -+
-EVIDENCE                         +-> CASE FILE (3 tabs: Claims | Evidence | Contradictions)
-CONTRADICTIONS                  -+
-UNKNOWNS                        -+-> ANNOTATIONS (2 tabs: Unknowns | Context Notes)
-CONTEXT NOTES                   -+
-GRAPH                           -+
-GLOBE                            +-> VISUALIZE (3 modes: Graph | Globe | Nexus)
-THE NEXUS                       -+
-TIMELINE                        -+-> TIMELINE (2 modes: River | Depth)
-DEPTH VIEW                      -+
-SEARCH                          -->  SEARCH (unchanged)
-BRIDGE IMPORT                   -->  BRIDGE IMPORT (unchanged)
-RABBIT HOLE                     -->  RABBIT HOLE (unchanged)
-```
+## Changes
 
-## Why These Groupings Make Sense
+### 1. ConnectionWeb.tsx -- Detective Investigation Board
 
-**Case File** (Claims + Evidence + Contradictions): These are all structured data objects in the investigation. Claims reference Evidence via the `claim_evidence` table. Contradictions compare sources. Users working on one almost always need the others. Merging them into tabs keeps everything in context.
+**Force simulation tuning** (the key fix for spacing):
+- Add `d3Force` callback to configure charge repulsion (`forceManyBody().strength(-300)`) so nodes push apart much more
+- Set `forceLink().distance()` based on link type (contradictions longer, citations shorter) to create meaningful spacing
+- Add `forceCollide()` with radius based on node size to prevent overlaps entirely
+- Increase `d3AlphaDecay` to `0.03` for faster stabilization
+- Add `warmupTicks={50}` to pre-simulate before rendering (no messy initial animation)
 
-**Annotations** (Unknowns + Context Notes): Both are commentary layers -- Unknowns track gaps in knowledge, Context Notes are user observations. They serve the same editorial function and are lightweight list views that work well as tabs.
+**Visual redesign -- detective board style**:
+- Nodes: Draw as clean circles with a thin border ring, filled center dot, and label on a dark background "card" beneath (like a pinned photo/document on a corkboard)
+- Size nodes by `sourceCount` more aggressively so important nodes are visibly larger
+- Links: Replace straight lines with curved bezier lines (like string on a board). Use dashed lines for contradictions, solid for citations
+- Add small directional arrows on link endpoints
+- Draw edge-type label at midpoint of each link (small, subtle text like "FINANCIAL" or "CITATION")
+- Intel nodes get a pulsing green border ring to distinguish live data
 
-**Visualize** (Graph + Globe + Nexus): Three different spatial visualizations of the same underlying intel data. A mode switcher at the top (similar to Graph's existing Web/Circuit toggle) keeps all exploration tools in one place.
+### 2. CircuitBoard.tsx -- Clean Grid-Aligned Intel View
 
-**Timeline** (Timeline River + Depth/Iceberg): Both are alternative lenses on the same claims and events data -- one organized by time, the other by evidence density. A simple toggle switches between the two views.
+**Force simulation tuning**:
+- Add `d3Force` to set stronger charge repulsion (`-400`) and longer link distances (`120`)
+- Add `forceCollide()` with generous radius (`30`) to prevent the current stacking/overlapping
+- Increase `d3VelocityDecay` to `0.5` for less jittery movement
 
-## Technical Changes
+**Visual cleanup**:
+- Make rectangles wider to fit labels without truncation (scale width by label length)
+- Increase minimum spacing between circuit pins
+- Draw right-angle link paths with more offset so parallel links don't overlap
+- Add link-type indicators (small colored dots) at link midpoints
 
-### 1. New Combined Pages
+### 3. Shared Improvements (both views)
 
-**`src/pages/CaseFile.tsx`** -- New page with Tabs component
-- Tab 1: "CLAIMS" -- contains current Claims.tsx content
-- Tab 2: "EVIDENCE" -- contains current Evidence.tsx content  
-- Tab 3: "CONTRADICTIONS" -- contains current Contradictions.tsx content
-- Each tab's content is extracted into its own component file under `src/components/casefile/`
+**Zoom-to-fit on load**: After the simulation stabilizes (`onEngineStop`), call `graphRef.current.zoomToFit(400, 60)` to auto-frame all nodes with padding. This ensures the user always sees the full graph nicely framed regardless of how many nodes exist.
 
-**`src/pages/Annotations.tsx`** -- New page with Tabs component
-- Tab 1: "UNKNOWNS" -- contains current Unknowns.tsx content
-- Tab 2: "CONTEXT NOTES" -- contains current ContextNotes.tsx content
-- Content extracted into `src/components/annotations/`
+**Node interaction polish**:
+- On hover: Highlight the hovered node and all its direct connections, dim everything else (neighborhood highlight)
+- Increase label font size on hover for readability
 
-**`src/pages/Visualize.tsx`** -- New page with mode switcher (similar to Graph's existing Web/Circuit toggle)
-- Mode 1: "GRAPH" -- current Graph.tsx (Web + Circuit sub-modes preserved)
-- Mode 2: "GLOBE" -- current GlobePage.tsx
-- Mode 3: "NEXUS" -- current NexusPage.tsx
-- Each mode is a full-screen visualization, toggled via header buttons
+### 4. Files to Modify
 
-**`src/pages/Timeline.tsx`** -- Updated to include Depth View
-- Mode 1: "RIVER" -- current Timeline view
-- Mode 2: "DEPTH" -- current IcebergExplorer view
-- Toggle in the header bar
+| File | Change |
+|------|--------|
+| `src/components/graph/ConnectionWeb.tsx` | Force params, curved links, detective board node rendering, zoom-to-fit, hover highlight |
+| `src/components/graph/CircuitBoard.tsx` | Force params, collision avoidance, wider nodes, cleaner link routing, zoom-to-fit |
 
-### 2. Extract Page Content into Components
-
-To keep files manageable, the current page content moves into reusable components:
-- `src/components/casefile/ClaimsPanel.tsx`
-- `src/components/casefile/EvidencePanel.tsx`
-- `src/components/casefile/ContradictionsPanel.tsx`
-- `src/components/annotations/UnknownsPanel.tsx`
-- `src/components/annotations/ContextNotesPanel.tsx`
-- `src/components/visualize/GraphView.tsx` (wraps existing Graph content)
-- `src/components/visualize/GlobeView.tsx` (wraps existing GlobePage content -- renamed to avoid conflict with existing GlobeView component)
-- `src/components/visualize/NexusView.tsx`
-- `src/components/timeline/TimelineRiver.tsx`
-- `src/components/timeline/DepthView.tsx`
-
-### 3. Update Router (`src/App.tsx`)
-
-Remove individual routes for merged pages and add new combined routes:
-- `/casefile` -- CaseFile page (replaces `/claims`, `/evidence`, `/contradictions`)
-- `/annotations` -- Annotations page (replaces `/notes`, `/unknowns`)
-- `/visualize` -- Visualize page (replaces `/graph`, `/globe`, `/nexus`)
-- `/timeline` -- Timeline page (already exists, now includes Depth View; removes `/iceberg`)
-- Keep: `/`, `/search`, `/import`, `/rabbit-hole`
-
-### 4. Update Sidebar (`src/components/layout/AppSidebar.tsx`)
-
-New navigation items (7 instead of 14):
-- DASHBOARD (`/`)
-- CASE FILE (`/casefile`) -- icon: FileText
-- ANNOTATIONS (`/annotations`) -- icon: MessageSquare
-- VISUALIZE (`/visualize`) -- icon: GitBranch
-- TIMELINE (`/timeline`) -- icon: Clock
-- SEARCH (`/search`) -- icon: Search
-- BRIDGE IMPORT (`/import`) -- icon: Import
-- RABBIT HOLE (`/rabbit-hole`) -- icon: Rabbit
-
-### 5. Update Cross-Reference Navigation
-
-Any existing cross-reference links (query params like `?search=` on Globe, `?topic=` on Nexus) need to point to the new combined routes with an additional mode parameter, e.g., `/visualize?mode=globe&search=epstein`.
-
-### 6. Delete Old Page Files
-
-Remove after migration:
-- `src/pages/Claims.tsx`
-- `src/pages/Evidence.tsx`
-- `src/pages/Contradictions.tsx`
-- `src/pages/Unknowns.tsx`
-- `src/pages/ContextNotes.tsx`
-- `src/pages/Graph.tsx`
-- `src/pages/GlobePage.tsx`
-- `src/pages/NexusPage.tsx`
-- `src/pages/IcebergExplorer.tsx`
-
-### 7. No Database Changes
-
-All data queries remain the same. Only the UI organization changes.
-
-## Result
-
-The sidebar shrinks from 14 items to 7, making the app feel more focused. Every feature is still accessible -- just organized into logical groups with tabs or mode switches. The user flow becomes: import data, view it in the case file, explore it visually, and annotate it.
+No new dependencies needed -- all changes use the existing `react-force-graph-2d` API and canvas drawing.
 
