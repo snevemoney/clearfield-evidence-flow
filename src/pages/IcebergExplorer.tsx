@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layers, ChevronDown, FileText, AlertTriangle, Eye, X } from "lucide-react";
 import { icebergData, type IcebergItem } from "@/lib/demo-graph-data";
+import { useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const depths = [
   { key: "surface", label: "SURFACE", subtitle: "Well-sourced, acknowledged facts", gradient: "from-cyan-500/20 to-cyan-600/5", borderColor: "border-cyan-500/30", textColor: "text-cyan-400" },
@@ -15,11 +18,66 @@ const statusColors: Record<string, string> = {
   disputed: "text-amber-400 border-amber-500/30",
   speculative: "text-indigo-400 border-indigo-500/30",
   unknown: "text-slate-500 border-slate-600/30",
+  alleged: "text-amber-400 border-amber-500/30",
+  unsupported: "text-slate-500 border-slate-600/30",
+  retracted: "text-red-400 border-red-500/30",
+  open: "text-slate-500 border-slate-600/30",
+  confirmed: "text-emerald-400 border-emerald-500/30",
+  debunked: "text-red-400 border-red-500/30",
 };
+
+function useClaims() {
+  useRealtimeInvalidation();
+  return useQuery({
+    queryKey: ["claims_with_evidence"],
+    queryFn: async () => {
+      const { data: claims, error } = await supabase
+        .from("claims")
+        .select("*, claim_evidence(evidence_id)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return claims || [];
+    },
+  });
+}
 
 const IcebergExplorer = () => {
   const [expandedDepth, setExpandedDepth] = useState<string | null>("surface");
   const [selectedItem, setSelectedItem] = useState<IcebergItem | null>(null);
+  const { data: dbClaims = [] } = useClaims();
+
+  // Convert DB claims to iceberg items with depth based on evidence count
+  const dbIcebergItems: IcebergItem[] = useMemo(() => {
+    return dbClaims.map((claim: any) => {
+      const evidenceCount = claim.claim_evidence?.length || 0;
+      const label = claim.label || "alleged";
+      
+      // Determine depth from evidence density
+      let depth: IcebergItem["depth"];
+      if (evidenceCount >= 5) depth = "surface";
+      else if (evidenceCount >= 2) depth = "shallow";
+      else if (evidenceCount >= 1) depth = "deep";
+      else depth = "abyss";
+
+      // Map claim label to iceberg status
+      let status: IcebergItem["status"];
+      if (label === "verified" || claim.status === "confirmed") status = "verified";
+      else if (label === "disputed" || label === "retracted" || claim.status === "debunked") status = "disputed";
+      else if (label === "unsupported" || label === "alleged") status = "speculative";
+      else status = "unknown";
+
+      return {
+        id: `claim-${claim.id}`,
+        title: claim.title,
+        depth,
+        evidenceCount,
+        status,
+        description: claim.content || claim.title,
+      };
+    });
+  }, [dbClaims]);
+
+  const allItems = useMemo(() => [...icebergData, ...dbIcebergItems], [dbIcebergItems]);
 
   return (
     <div className="min-h-screen grid-bg">
@@ -30,6 +88,11 @@ const IcebergExplorer = () => {
         <span className="font-mono text-[10px] text-muted-foreground ml-2">
           // THE ICEBERG EXPLORER
         </span>
+        {dbIcebergItems.length > 0 && (
+          <span className="font-mono text-[10px] text-emerald-400 ml-2">
+            +{dbIcebergItems.length} LIVE
+          </span>
+        )}
       </div>
 
       <div className="max-w-4xl mx-auto py-6 px-6 relative">
@@ -43,7 +106,7 @@ const IcebergExplorer = () => {
         {/* Iceberg layers */}
         <div className="space-y-2">
           {depths.map((depth, di) => {
-            const items = icebergData.filter((i) => i.depth === depth.key);
+            const items = allItems.filter((i) => i.depth === depth.key);
             const isExpanded = expandedDepth === depth.key;
 
             return (
@@ -98,30 +161,41 @@ const IcebergExplorer = () => {
                       }}
                     >
                       <div className="space-y-1 pt-2">
-                        {items.map((item) => (
-                          <motion.button
-                            key={item.id}
-                            onClick={() => setSelectedItem(item)}
-                            className={`w-full text-left border ${depth.borderColor} rounded-sm p-3 bg-card/50 hover:bg-card/80 transition-all`}
-                            whileHover={{ x: 4 }}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1">
-                                <p className="font-mono text-[11px] text-foreground">{item.title}</p>
-                                <div className="flex items-center gap-3 mt-1.5">
-                                  <span className={`font-mono text-[9px] tracking-wider border rounded-sm px-1.5 py-0.5 ${statusColors[item.status]}`}>
-                                    {item.status.toUpperCase()}
-                                  </span>
-                                  <span className="font-mono text-[9px] text-muted-foreground flex items-center gap-1">
-                                    <FileText className="h-2.5 w-2.5" />
-                                    {item.evidenceCount} sources
-                                  </span>
+                        {items.map((item) => {
+                          const isLive = item.id.startsWith("claim-");
+                          return (
+                            <motion.button
+                              key={item.id}
+                              onClick={() => setSelectedItem(item)}
+                              className={`w-full text-left border ${depth.borderColor} rounded-sm p-3 bg-card/50 hover:bg-card/80 transition-all ${isLive ? "border-l-2 border-l-emerald-500/60" : ""}`}
+                              whileHover={{ x: 4 }}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  <p className="font-mono text-[11px] text-foreground">{item.title}</p>
+                                  <div className="flex items-center gap-3 mt-1.5">
+                                    <span className={`font-mono text-[9px] tracking-wider border rounded-sm px-1.5 py-0.5 ${statusColors[item.status] || statusColors.unknown}`}>
+                                      {item.status.toUpperCase()}
+                                    </span>
+                                    <span className="font-mono text-[9px] text-muted-foreground flex items-center gap-1">
+                                      <FileText className="h-2.5 w-2.5" />
+                                      {item.evidenceCount} sources
+                                    </span>
+                                    {isLive && (
+                                      <span className="font-mono text-[7px] tracking-widest text-emerald-400">LIVE</span>
+                                    )}
+                                  </div>
                                 </div>
+                                <Eye className="h-3 w-3 text-muted-foreground/50 mt-1 shrink-0" />
                               </div>
-                              <Eye className="h-3 w-3 text-muted-foreground/50 mt-1 shrink-0" />
-                            </div>
-                          </motion.button>
-                        ))}
+                            </motion.button>
+                          );
+                        })}
+                        {items.length === 0 && (
+                          <div className="py-3 text-center font-mono text-[10px] text-muted-foreground/40">
+                            No items at this depth
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )}
@@ -167,7 +241,7 @@ const IcebergExplorer = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <span className={`font-mono text-[10px] tracking-widest ${statusColors[selectedItem.status]?.split(" ")[0]}`}>
+                <span className={`font-mono text-[10px] tracking-widest ${(statusColors[selectedItem.status] || statusColors.unknown)?.split(" ")[0]}`}>
                   {selectedItem.status.toUpperCase()} // {selectedItem.depth.toUpperCase()}
                 </span>
                 <button onClick={() => setSelectedItem(null)}>
