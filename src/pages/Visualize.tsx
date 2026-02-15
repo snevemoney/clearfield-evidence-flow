@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { GitBranch, Globe as GlobeIcon, Orbit, Cpu, Network, Filter, X, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,6 +6,8 @@ import { ConnectionWeb } from "@/components/graph/ConnectionWeb";
 import { CircuitBoard } from "@/components/graph/CircuitBoard";
 import { NodeDetailPanel } from "@/components/graph/NodeDetailPanel";
 import { EDGE_COLORS, NODE_COLORS, type GraphNode } from "@/lib/demo-graph-data";
+import { GraphSearchBar } from "@/components/graph/GraphSearchBar";
+import type { GraphHandle } from "@/components/graph/ConnectionWeb";
 import { GlobeView } from "@/components/globe/GlobeView";
 import { LocationDetailPanel } from "@/components/globe/LocationDetailPanel";
 import { GlobeQueryBar } from "@/components/globe/GlobeQueryBar";
@@ -48,6 +50,8 @@ const Visualize = () => {
   const [graphViewMode, setGraphViewMode] = useState<"web" | "circuit">("web");
   const [selectedGraphNode, setSelectedGraphNode] = useState<GraphNode | null>(null);
   const [graphFilter, setGraphFilter] = useState<string[]>([]);
+  const [graphNodes, setGraphNodes] = useState<GraphNode[]>([]);
+  const graphRef = useRef<GraphHandle>(null);
 
   // Globe state
   const [selectedLocation, setSelectedLocation] = useState<GlobeLocation | null>(null);
@@ -267,8 +271,12 @@ const Visualize = () => {
         {mode === "graph" && (
           <>
             <motion.div key={graphViewMode} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="w-full h-full">
-              {graphViewMode === "web" ? <ConnectionWeb onNodeClick={setSelectedGraphNode} filter={graphFilter} /> : <CircuitBoard onNodeClick={setSelectedGraphNode} filter={graphFilter} />}
+              {graphViewMode === "web" ? <ConnectionWeb ref={graphRef} onNodeClick={setSelectedGraphNode} filter={graphFilter} onNodesReady={setGraphNodes} /> : <CircuitBoard ref={graphRef} onNodeClick={setSelectedGraphNode} filter={graphFilter} onNodesReady={setGraphNodes} />}
             </motion.div>
+            <GraphSearchBar
+              nodes={graphNodes}
+              onFocusNode={(node) => graphRef.current?.focusNode(node.id)}
+            />
             <NodeDetailPanel node={selectedGraphNode} onClose={() => setSelectedGraphNode(null)} />
           </>
         )}
