@@ -7,6 +7,7 @@ import { CircuitBoard } from "@/components/graph/CircuitBoard";
 import { NodeDetailPanel } from "@/components/graph/NodeDetailPanel";
 import { EDGE_COLORS, NODE_COLORS, type GraphNode } from "@/lib/demo-graph-data";
 import { GraphSearchBar } from "@/components/graph/GraphSearchBar";
+import { GraphLegend } from "@/components/graph/GraphLegend";
 import type { GraphHandle } from "@/components/graph/ConnectionWeb";
 import { GlobeView } from "@/components/globe/GlobeView";
 import { LocationDetailPanel } from "@/components/globe/LocationDetailPanel";
@@ -277,6 +278,7 @@ const Visualize = () => {
               nodes={graphNodes}
               onFocusNode={(node) => graphRef.current?.focusNode(node.id)}
             />
+            <GraphLegend />
             <NodeDetailPanel node={selectedGraphNode} onClose={() => setSelectedGraphNode(null)} />
           </>
         )}
