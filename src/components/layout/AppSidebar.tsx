@@ -2,37 +2,25 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
-  Archive,
   GitBranch,
   Clock,
-  Layers,
   Search,
   MessageSquare,
-  HelpCircle,
-  Globe,
-  Orbit,
   Rabbit,
   LogIn,
   Shield,
   Import,
-  GitCompare,
 } from "lucide-react";
 
 const navItems = [
   { path: "/", label: "DASHBOARD", icon: LayoutDashboard },
-  { path: "/claims", label: "CLAIMS", icon: FileText },
-  { path: "/evidence", label: "EVIDENCE", icon: Archive },
-  { path: "/import", label: "BRIDGE IMPORT", icon: Import },
-  { path: "/contradictions", label: "CONTRADICTIONS", icon: GitCompare },
-  { path: "/graph", label: "GRAPH", icon: GitBranch },
-  { path: "/globe", label: "GLOBE", icon: Globe },
-  { path: "/nexus", label: "THE NEXUS", icon: Orbit },
-  { path: "/rabbit-hole", label: "RABBIT HOLE", icon: Rabbit },
+  { path: "/casefile", label: "CASE FILE", icon: FileText },
+  { path: "/annotations", label: "ANNOTATIONS", icon: MessageSquare },
+  { path: "/visualize", label: "VISUALIZE", icon: GitBranch },
   { path: "/timeline", label: "TIMELINE", icon: Clock },
-  { path: "/iceberg", label: "DEPTH VIEW", icon: Layers },
   { path: "/search", label: "SEARCH", icon: Search },
-  { path: "/notes", label: "CONTEXT NOTES", icon: MessageSquare },
-  { path: "/unknowns", label: "UNKNOWNS", icon: HelpCircle },
+  { path: "/import", label: "BRIDGE IMPORT", icon: Import },
+  { path: "/rabbit-hole", label: "RABBIT HOLE", icon: Rabbit },
 ];
 
 export function AppSidebar() {
@@ -79,7 +67,7 @@ export function AppSidebar() {
           ACCESS TERMINAL
         </Link>
         <div className="mt-3 px-3 font-mono text-[10px] text-muted-foreground/50 tracking-wider">
-          v0.1.0 // UNCLASSIFIED
+          v0.2.0 // UNCLASSIFIED
         </div>
       </div>
     </aside>

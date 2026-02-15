@@ -23,12 +23,11 @@ const CATEGORIES = [
 function getCategoryStyle(cat: string) {
   return CATEGORIES.find((c) => c.value === cat)?.color || "text-muted-foreground border-border bg-muted";
 }
-
 function getCategoryLabel(cat: string) {
   return CATEGORIES.find((c) => c.value === cat)?.label || cat.toUpperCase();
 }
 
-const Unknowns = () => {
+export function UnknownsPanel() {
   useRealtimeInvalidation();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -53,75 +52,36 @@ const Unknowns = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["unknowns"] });
-      setOpen(false);
-      setTitle(""); setDescription(""); setCategory("open_question");
+      setOpen(false); setTitle(""); setDescription(""); setCategory("open_question");
       toast({ title: "Unknown added", description: "Gap in knowledge has been recorded." });
     },
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const filtered = filterCat ? unknowns.filter((u) => u.category === filterCat) : unknowns;
-
-  const countByCategory = CATEGORIES.map((c) => ({
-    ...c,
-    count: unknowns.filter((u) => u.category === c.value).length,
-  }));
+  const countByCategory = CATEGORIES.map((c) => ({ ...c, count: unknowns.filter((u) => u.category === c.value).length }));
 
   return (
-    <div className="min-h-screen p-6 grid-bg">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <HelpCircle className="h-6 w-6 text-accent" />
-          <h1 className="text-xl tracking-widest text-accent">WHAT WE DON'T KNOW</h1>
-        </div>
+        <p className="font-mono text-[10px] text-muted-foreground tracking-wider">MANDATORY PANEL — Gaps in knowledge are features, not bugs.</p>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="font-mono text-xs tracking-wider gap-2">
-              <Plus className="h-4 w-4" />
-              ADD UNKNOWN
-            </Button>
-          </DialogTrigger>
+          <DialogTrigger asChild><Button variant="outline" className="font-mono text-xs tracking-wider gap-2"><Plus className="h-4 w-4" />ADD UNKNOWN</Button></DialogTrigger>
           <DialogContent className="bg-card border-border">
-            <DialogHeader>
-              <DialogTitle className="font-mono tracking-widest text-accent">RECORD UNKNOWN</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle className="font-mono tracking-widest text-accent">RECORD UNKNOWN</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <div>
-                <Label className="font-mono text-xs tracking-wider">TITLE</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What's missing or unknown..." className="font-mono text-sm mt-1" />
-              </div>
-              <div>
-                <Label className="font-mono text-xs tracking-wider">DESCRIPTION</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Additional context..." className="font-mono text-sm mt-1" />
-              </div>
-              <div>
-                <Label className="font-mono text-xs tracking-wider">CATEGORY</Label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="font-mono text-xs mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value} className="font-mono text-xs">{c.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={() => createUnknown.mutate()} disabled={!title || createUnknown.isPending} className="w-full font-mono text-xs tracking-wider">
-                {createUnknown.isPending ? "RECORDING..." : "RECORD UNKNOWN"}
-              </Button>
+              <div><Label className="font-mono text-xs tracking-wider">TITLE</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What's missing or unknown..." className="font-mono text-sm mt-1" /></div>
+              <div><Label className="font-mono text-xs tracking-wider">DESCRIPTION</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Additional context..." className="font-mono text-sm mt-1" /></div>
+              <div><Label className="font-mono text-xs tracking-wider">CATEGORY</Label><Select value={category} onValueChange={setCategory}><SelectTrigger className="font-mono text-xs mt-1"><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value} className="font-mono text-xs">{c.label}</SelectItem>)}</SelectContent></Select></div>
+              <Button onClick={() => createUnknown.mutate()} disabled={!title || createUnknown.isPending} className="w-full font-mono text-xs tracking-wider">{createUnknown.isPending ? "RECORDING..." : "RECORD UNKNOWN"}</Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
-      <p className="font-mono text-[10px] text-muted-foreground tracking-wider mb-6">
-        MANDATORY PANEL — Gaps in knowledge are features, not bugs.
-      </p>
 
-      {/* Category summary */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-6 mt-4">
         {countByCategory.map((c) => (
-          <button
-            key={c.value}
-            onClick={() => setFilterCat(filterCat === c.value ? null : c.value)}
-            className={`border rounded-sm p-3 text-center transition-all ${filterCat === c.value ? c.color : "border-border bg-card hover:border-accent/30"}`}
-          >
+          <button key={c.value} onClick={() => setFilterCat(filterCat === c.value ? null : c.value)} className={`border rounded-sm p-3 text-center transition-all ${filterCat === c.value ? c.color : "border-border bg-card hover:border-accent/30"}`}>
             <div className="font-mono text-lg font-bold text-foreground">{c.count}</div>
             <div className="font-mono text-[9px] tracking-wider text-muted-foreground">{c.label}</div>
           </button>
@@ -129,9 +89,7 @@ const Unknowns = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center min-h-[200px]">
-          <p className="font-mono text-xs text-muted-foreground animate-pulse">LOADING...</p>
-        </div>
+        <div className="flex items-center justify-center min-h-[200px]"><p className="font-mono text-xs text-muted-foreground animate-pulse">LOADING...</p></div>
       ) : filtered.length === 0 ? (
         <div className="border border-border rounded-sm bg-card p-8 flex flex-col items-center justify-center min-h-[200px]">
           <AlertTriangle className="h-8 w-8 text-muted-foreground/20 mb-3" />
@@ -144,12 +102,8 @@ const Unknowns = () => {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={`font-mono text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-sm border ${getCategoryStyle(u.category)}`}>
-                      {getCategoryLabel(u.category)}
-                    </span>
-                    <span className={`font-mono text-[10px] tracking-wider px-2 py-0.5 rounded-sm border ${u.generated_by === "ai" ? "border-primary/30 text-primary" : u.generated_by === "bridge_import" ? "border-success/30 text-success" : "border-border text-muted-foreground"}`}>
-                      {u.generated_by === "bridge_import" ? "IMPORT" : u.generated_by.toUpperCase()}
-                    </span>
+                    <span className={`font-mono text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-sm border ${getCategoryStyle(u.category)}`}>{getCategoryLabel(u.category)}</span>
+                    <span className={`font-mono text-[10px] tracking-wider px-2 py-0.5 rounded-sm border ${u.generated_by === "ai" ? "border-primary/30 text-primary" : u.generated_by === "bridge_import" ? "border-success/30 text-success" : "border-border text-muted-foreground"}`}>{u.generated_by === "bridge_import" ? "IMPORT" : u.generated_by.toUpperCase()}</span>
                   </div>
                   <h3 className="font-mono text-sm text-foreground mb-1">{u.title}</h3>
                   {u.description && <p className="font-mono text-xs text-muted-foreground">{u.description}</p>}
@@ -162,6 +116,4 @@ const Unknowns = () => {
       )}
     </div>
   );
-};
-
-export default Unknowns;
+}

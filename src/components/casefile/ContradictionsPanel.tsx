@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
 
-const Contradictions = () => {
+export function ContradictionsPanel() {
   useRealtimeInvalidation();
   const [scanning, setScanning] = useState(false);
   const [topicFilter, setTopicFilter] = useState("");
@@ -35,9 +35,7 @@ const Contradictions = () => {
   const runScan = async () => {
     setScanning(true);
     try {
-      const { data, error } = await supabase.functions.invoke("find-contradictions", {
-        body: topicFilter ? { topic: topicFilter } : {},
-      });
+      const { data, error } = await supabase.functions.invoke("find-contradictions", { body: topicFilter ? { topic: topicFilter } : {} });
       if (error) throw error;
       const count = data?.contradictions?.length || 0;
       toast({ title: "Scan complete", description: `${count} contradiction${count !== 1 ? "s" : ""} detected.` });
@@ -50,42 +48,27 @@ const Contradictions = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 grid-bg">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <GitCompare className="h-6 w-6 text-destructive" />
-          <h1 className="text-xl tracking-widest text-destructive">CONTRADICTIONS</h1>
-          <span className="font-mono text-[10px] text-muted-foreground border border-border px-2 py-0.5 rounded-sm">{contradictions.length} FOUND</span>
-        </div>
-      </div>
+    <div className="p-6">
       <p className="font-mono text-[10px] text-muted-foreground tracking-wider mb-6">
         SOURCE A SAYS X. SOURCE B SAYS Y. NO CONCLUSIONS — JUST THE CONFLICT.
       </p>
 
       <div className="flex items-center gap-3 mb-6">
-        <Input
-          value={topicFilter}
-          onChange={(e) => setTopicFilter(e.target.value)}
-          placeholder="Filter by topic (optional)..."
-          className="font-mono text-sm max-w-sm"
-        />
+        <Input value={topicFilter} onChange={(e) => setTopicFilter(e.target.value)} placeholder="Filter by topic (optional)..." className="font-mono text-sm max-w-sm" />
         <Button onClick={runScan} disabled={scanning} className="font-mono text-xs tracking-wider gap-2">
           {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
           {scanning ? "SCANNING..." : "SCAN FOR CONTRADICTIONS"}
         </Button>
+        <span className="font-mono text-[10px] text-muted-foreground border border-border px-2 py-0.5 rounded-sm">{contradictions.length} FOUND</span>
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center min-h-[300px]">
-          <p className="font-mono text-xs text-muted-foreground animate-pulse">LOADING...</p>
-        </div>
+        <div className="flex items-center justify-center min-h-[300px]"><p className="font-mono text-xs text-muted-foreground animate-pulse">LOADING...</p></div>
       ) : contradictions.length === 0 ? (
         <div className="border border-border rounded-sm bg-card p-8 flex flex-col items-center justify-center min-h-[400px]">
           <GitCompare className="h-12 w-12 text-muted-foreground/20 mb-4" />
           <p className="font-mono text-xs text-muted-foreground tracking-wider">NO CONTRADICTIONS DETECTED</p>
-          <p className="font-mono text-[10px] text-muted-foreground/50 mt-1">
-            Run a scan to identify conflicting claims between sources.
-          </p>
+          <p className="font-mono text-[10px] text-muted-foreground/50 mt-1">Run a scan to identify conflicting claims between sources.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -123,6 +106,4 @@ const Contradictions = () => {
       )}
     </div>
   );
-};
-
-export default Contradictions;
+}

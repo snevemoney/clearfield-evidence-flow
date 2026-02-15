@@ -83,7 +83,7 @@ export function LocationDetailPanel({ location, onClose }: LocationDetailPanelPr
           <div>
             <h4 className="font-mono text-[10px] tracking-widest text-muted-foreground mb-2">CROSS-REFERENCE</h4>
             <button
-              onClick={() => navigate(`/nexus?topic=${encodeURIComponent(location.label)}`)}
+              onClick={() => navigate(`/visualize?mode=nexus&topic=${encodeURIComponent(location.label)}`)}
               className="flex items-center gap-2 w-full border border-border rounded-sm p-2 bg-secondary/30 hover:bg-secondary/60 transition-all mb-1.5"
             >
               <Orbit className="h-3 w-3 text-primary" />
