@@ -16,6 +16,7 @@ import { QueryResultPanel, type AiQueryResult } from "@/components/globe/QueryRe
 import { demoGlobeLocations, demoGlobeArcs, demoHeatmapPoints, CATEGORY_COLORS, ARC_NETWORKS, type GlobeLocation } from "@/lib/demo-globe-data";
 import { RadialVisualization } from "@/components/nexus/RadialVisualization";
 import { NexusDetailPanel } from "@/components/nexus/NexusDetailPanel";
+import { NexusSearchBar } from "@/components/nexus/NexusSearchBar";
 import { getTopicUniverse, getAllTopicIds, getTopicLabel, RING_COLORS, RING_LABELS, type NexusNode, type TopicUniverse, addDynamicUniverse } from "@/lib/demo-nexus-data";
 import { useIntelEntriesRealtime as useIntelEntries } from "@/hooks/use-intel-realtime";
 import { supabase } from "@/integrations/supabase/client";
@@ -307,6 +308,7 @@ const Visualize = () => {
                 <RadialVisualization universe={universe} onNodeClick={setSelectedNexusNode} onRecenter={navigateNexus} />
               </motion.div>
             </AnimatePresence>
+            <NexusSearchBar onNavigate={navigateNexus} onSelectNode={setSelectedNexusNode} currentTopic={currentTopic} />
             <NexusDetailPanel node={selectedNexusNode} onClose={() => setSelectedNexusNode(null)} onNavigate={navigateNexus} />
           </>
         )}
