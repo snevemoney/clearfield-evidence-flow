@@ -110,10 +110,10 @@ const Index = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`font-mono text-[8px] tracking-widest px-1.5 py-0.5 rounded-sm border ${statusColor[entry.fact_check_status] || "text-slate-400 border-slate-500/40"}`}>
-                            {entry.fact_check_status.toUpperCase()}
+                            {(entry.fact_check_status ?? 'unverified').toUpperCase()}
                           </span>
                           <span className="font-mono text-[8px] text-muted-foreground/60 tracking-wider">
-                            {entry.category.toUpperCase()}
+                            {(entry.category ?? 'unknown').toUpperCase()}
                           </span>
                         </div>
                         <p className="font-mono text-[11px] text-foreground truncate">{entry.title}</p>
