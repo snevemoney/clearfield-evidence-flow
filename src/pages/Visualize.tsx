@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { GitBranch, Globe as GlobeIcon, Orbit, Cpu, Network, Filter, X, ChevronLeft } from "lucide-react";
+import { GitBranch, Globe as GlobeIcon, Orbit, StickyNote, Network, Filter, X, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ConnectionWeb } from "@/components/graph/ConnectionWeb";
-import { TemporalGrid } from "@/components/graph/TemporalGrid";
+import { ShadowBoard } from "@/components/graph/ShadowBoard";
 import { NodeDetailPanel } from "@/components/graph/NodeDetailPanel";
 import { EDGE_COLORS, NODE_COLORS, type GraphNode } from "@/lib/demo-graph-data";
 import { GraphSearchBar } from "@/components/graph/GraphSearchBar";
@@ -186,7 +186,7 @@ const Visualize = () => {
           {mode === "graph" && (
             <div className="flex items-center gap-1 border border-border rounded-sm p-0.5">
               <button onClick={() => setGraphViewMode("web")} className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] tracking-wider rounded-sm transition-all ${graphViewMode === "web" ? "bg-primary/20 text-primary border-glow-cyan border" : "text-muted-foreground hover:text-foreground"}`}><Network className="h-3 w-3" />THE WEB</button>
-              <button onClick={() => setGraphViewMode("circuit")} className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] tracking-wider rounded-sm transition-all ${graphViewMode === "circuit" ? "bg-primary/20 text-primary border-glow-cyan border" : "text-muted-foreground hover:text-foreground"}`}><Cpu className="h-3 w-3" />TEMPORAL GRID</button>
+              <button onClick={() => setGraphViewMode("circuit")} className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] tracking-wider rounded-sm transition-all ${graphViewMode === "circuit" ? "bg-primary/20 text-primary border-glow-cyan border" : "text-muted-foreground hover:text-foreground"}`}><StickyNote className="h-3 w-3" />SHADOW BOARD</button>
             </div>
           )}
           {mode === "nexus" && nexusHistory.length > 0 && (
@@ -273,7 +273,7 @@ const Visualize = () => {
         {mode === "graph" && (
           <>
             <motion.div key={graphViewMode} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="w-full h-full">
-              {graphViewMode === "web" ? <ConnectionWeb ref={graphRef} onNodeClick={setSelectedGraphNode} filter={graphFilter} onNodesReady={setGraphNodes} /> : <TemporalGrid ref={graphRef} onNodeClick={setSelectedGraphNode} filter={graphFilter} onNodesReady={setGraphNodes} />}
+              {graphViewMode === "web" ? <ConnectionWeb ref={graphRef} onNodeClick={setSelectedGraphNode} filter={graphFilter} onNodesReady={setGraphNodes} /> : <ShadowBoard ref={graphRef} onNodeClick={setSelectedGraphNode} filter={graphFilter} onNodesReady={setGraphNodes} />}
             </motion.div>
             <GraphSearchBar
               nodes={graphNodes}
