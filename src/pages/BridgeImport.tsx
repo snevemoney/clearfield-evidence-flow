@@ -19,7 +19,7 @@ interface ImportResult {
   error?: string;
 }
 
-const MAX_TEXT_LENGTH = 10000;
+const MAX_TEXT_LENGTH = 50000;
 
 const BridgeImport = () => {
   const [urlText, setUrlText] = useState("");
