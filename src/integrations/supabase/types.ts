@@ -145,6 +145,54 @@ export type Database = {
           },
         ]
       }
+      contradictions: {
+        Row: {
+          created_at: string
+          detected_by: string
+          id: string
+          source_a_id: string | null
+          source_b_id: string | null
+          summary_a: string
+          summary_b: string
+          topic: string
+        }
+        Insert: {
+          created_at?: string
+          detected_by?: string
+          id?: string
+          source_a_id?: string | null
+          source_b_id?: string | null
+          summary_a: string
+          summary_b: string
+          topic: string
+        }
+        Update: {
+          created_at?: string
+          detected_by?: string
+          id?: string
+          source_a_id?: string | null
+          source_b_id?: string | null
+          summary_a?: string
+          summary_b?: string
+          topic?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contradictions_source_a_id_fkey"
+            columns: ["source_a_id"]
+            isOneToOne: false
+            referencedRelation: "intel_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contradictions_source_b_id_fkey"
+            columns: ["source_b_id"]
+            isOneToOne: false
+            referencedRelation: "intel_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_pages: {
         Row: {
           created_at: string
@@ -635,6 +683,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      unknowns: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          generated_by: string
+          id: string
+          source_intel_id: string | null
+          title: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          generated_by?: string
+          id?: string
+          source_intel_id?: string | null
+          title: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          generated_by?: string
+          id?: string
+          source_intel_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unknowns_source_intel_id_fkey"
+            columns: ["source_intel_id"]
+            isOneToOne: false
+            referencedRelation: "intel_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

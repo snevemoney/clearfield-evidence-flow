@@ -17,6 +17,8 @@ import Auth from "./pages/Auth";
 import GlobePage from "./pages/GlobePage";
 import NexusPage from "./pages/NexusPage";
 import RabbitHolePage from "./pages/RabbitHolePage";
+import BridgeImport from "./pages/BridgeImport";
+import Contradictions from "./pages/Contradictions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +43,8 @@ const App = () => (
             <Route path="/globe" element={<GlobePage />} />
             <Route path="/nexus" element={<NexusPage />} />
             <Route path="/rabbit-hole" element={<RabbitHolePage />} />
+            <Route path="/import" element={<BridgeImport />} />
+            <Route path="/contradictions" element={<Contradictions />} />
           </Route>
           <Route path="/auth" element={<Auth />} />
           <Route path="*" element={<NotFound />} />

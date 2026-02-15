@@ -14,12 +14,16 @@ import {
   Rabbit,
   LogIn,
   Shield,
+  Import,
+  GitCompare,
 } from "lucide-react";
 
 const navItems = [
   { path: "/", label: "DASHBOARD", icon: LayoutDashboard },
   { path: "/claims", label: "CLAIMS", icon: FileText },
   { path: "/evidence", label: "EVIDENCE", icon: Archive },
+  { path: "/import", label: "BRIDGE IMPORT", icon: Import },
+  { path: "/contradictions", label: "CONTRADICTIONS", icon: GitCompare },
   { path: "/graph", label: "GRAPH", icon: GitBranch },
   { path: "/globe", label: "GLOBE", icon: Globe },
   { path: "/nexus", label: "THE NEXUS", icon: Orbit },
