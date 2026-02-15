@@ -1,15 +1,21 @@
-import { useCallback, useRef, useState, useEffect, useMemo } from "react";
+import { useCallback, useRef, useState, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import { demoNodes, demoLinks, EDGE_COLORS, NODE_COLORS, type GraphNode, type GraphLink } from "@/lib/demo-graph-data";
 import { useIntelEntriesRealtime as useIntelEntries, useIntelConnectionsRealtime as useIntelConnections } from "@/hooks/use-intel-realtime";
 import * as d3 from "d3-force";
 
+export interface GraphHandle {
+  focusNode: (nodeId: string) => void;
+  getNodes: () => GraphNode[];
+}
+
 interface ConnectionWebProps {
   onNodeClick: (node: GraphNode | null) => void;
   filter: string[];
+  onNodesReady?: (nodes: GraphNode[]) => void;
 }
 
-export function ConnectionWeb({ onNodeClick, filter }: ConnectionWebProps) {
+export const ConnectionWeb = forwardRef<GraphHandle, ConnectionWebProps>(function ConnectionWeb({ onNodeClick, filter, onNodesReady }, ref) {
   const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -62,6 +68,22 @@ export function ConnectionWeb({ onNodeClick, filter }: ConnectionWebProps) {
 
   const allNodes = useMemo(() => [...demoNodes, ...intelNodes], [intelNodes]);
   const allLinks = useMemo(() => [...demoLinks, ...intelLinks], [intelLinks]);
+
+  useEffect(() => { onNodesReady?.(allNodes); }, [allNodes, onNodesReady]);
+
+  useImperativeHandle(ref, () => ({
+    focusNode: (nodeId: string) => {
+      if (!graphRef.current) return;
+      const fg = graphRef.current;
+      const node = fg.graphData().nodes.find((n: any) => n.id === nodeId);
+      if (node) {
+        fg.centerAt(node.x, node.y, 600);
+        fg.zoom(3, 600);
+        onNodeClick(node as GraphNode);
+      }
+    },
+    getNodes: () => allNodes,
+  }), [allNodes, onNodeClick]);
 
   const filteredNodes = allNodes.filter((n) => filter.length === 0 || filter.includes(n.type));
   const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
@@ -284,4 +306,4 @@ export function ConnectionWeb({ onNodeClick, filter }: ConnectionWebProps) {
       />
     </div>
   );
-}
+});

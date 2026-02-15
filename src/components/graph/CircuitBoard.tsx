@@ -1,14 +1,16 @@
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import { demoNodes, demoLinks, EDGE_COLORS, NODE_COLORS, type GraphNode } from "@/lib/demo-graph-data";
 import * as d3 from "d3-force";
+import type { GraphHandle } from "@/components/graph/ConnectionWeb";
 
 interface CircuitBoardProps {
   onNodeClick: (node: GraphNode | null) => void;
   filter: string[];
+  onNodesReady?: (nodes: GraphNode[]) => void;
 }
 
-export function CircuitBoard({ onNodeClick, filter }: CircuitBoardProps) {
+export const CircuitBoard = forwardRef<GraphHandle, CircuitBoardProps>(function CircuitBoard({ onNodeClick, filter, onNodesReady }, ref) {
   const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -28,6 +30,22 @@ export function CircuitBoard({ onNodeClick, filter }: CircuitBoardProps) {
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
   }, []);
+
+  useEffect(() => { onNodesReady?.(demoNodes); }, [onNodesReady]);
+
+  useImperativeHandle(ref, () => ({
+    focusNode: (nodeId: string) => {
+      if (!graphRef.current) return;
+      const fg = graphRef.current;
+      const node = fg.graphData().nodes.find((n: any) => n.id === nodeId);
+      if (node) {
+        fg.centerAt(node.x, node.y, 600);
+        fg.zoom(3, 600);
+        onNodeClick(node as GraphNode);
+      }
+    },
+    getNodes: () => demoNodes,
+  }), [onNodeClick]);
 
   const filteredNodes = demoNodes.filter((n) => filter.length === 0 || filter.includes(n.type));
   const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
@@ -193,4 +211,4 @@ export function CircuitBoard({ onNodeClick, filter }: CircuitBoardProps) {
       />
     </div>
   );
-}
+});
