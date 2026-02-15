@@ -1,53 +1,69 @@
 
 
-# Differentiating The Web vs Intel View
+# Replace Temporal Grid with Shadow Board
 
-## The Problem
-Both graph modes share the same data model, filters, legend, search bar, and detail panel. The only differences are cosmetic (circles vs rectangles) and that The Web merges live database entries. This makes Intel View feel like a reskin rather than a distinct tool.
+## Overview
+Remove the Temporal Grid and replace it with a **Shadow Board** -- a dark ops-style detective evidence wall where intel entries appear as pinned dossier cards connected by string lines, like a physical evidence board in a noir investigation room.
 
-## Proposed Approach: Give Each View a Distinct Purpose
+## What Gets Removed
+- `src/components/graph/TemporalGrid.tsx` -- deleted entirely
 
-### Option A: Make Intel View the "Live-Only" Analytical View
-Flip the data model so Intel View becomes the **database-focused** view while The Web remains the **reference/demo** view:
+## What Gets Created
+- `src/components/graph/ShadowBoard.tsx` -- the new component
 
-- **The Web** = Static reference graph (demo data only, as a baseline map of known connections)
-- **Intel View** = Live intelligence feed (database entries only, no demo data) with additional analytical features:
-  - Cluster detection highlighting (auto-group tightly connected nodes)
-  - Timeline slider to filter nodes by ingestion date
-  - Credibility heatmap coloring (nodes colored by their `credibility_score`)
-  - Fact-check status badges on each node (verified/disputed/unverified)
+## Shadow Board Design
 
-### Option B: Merge Into One View With Style Toggle
-Eliminate the mode switch entirely and keep a single graph view that:
-- Shows all data (demo + live) in one unified graph
-- Offers a visual style toggle (circle vs circuit board) as a cosmetic preference
-- This simplifies the UI and removes user confusion
+### Visual Concept
+- Dark cork/slate background with subtle texture (CSS gradient noise)
+- Intel entries rendered as **pinned cards** with:
+  - Torn/rough edge styling (subtle box-shadow + border treatment)
+  - Category-colored pin dot in the top corner
+  - Title, truncated description, fact-check status badge
+  - Credibility score bar along the bottom edge
+  - Faint "CLASSIFIED" or category stamp watermark
+- Connections rendered as **taut string lines** between cards (slightly curved, with a thumbtack dot at each end)
+- String colors match connection type (red = contradiction, yellow = financial, purple = social, cyan = citation)
 
-### Option C: Repurpose Intel View as a Temporal/Analytical Layer
-Keep both views but make Intel View fundamentally different:
-- **The Web** = Relationship map (current, spatial layout by connections)
-- **Intel View** = Temporal analysis board:
-  - X-axis = time (ingestion or publication date)
-  - Y-axis = category or credibility
-  - Nodes positioned by time rather than force-directed
-  - Shows patterns like "burst of activity" or "gap in coverage"
-  - Circuit board aesthetic fits this structured grid layout naturally
+### Layout
+- Canvas-based rendering (same pattern as other graph views) for performance
+- Force-directed positioning so cards spread naturally but can be explored via pan/zoom
+- Uses `react-force-graph-2d` like ConnectionWeb for consistency, with custom `nodeCanvasObject` rendering cards instead of circles
 
-## Recommendation
-**Option C** provides the most value — it gives Intel View a genuinely unique analytical purpose (temporal pattern analysis) that complements The Web's relationship mapping, and the circuit board aesthetic naturally suits a structured grid layout.
+### Data Source
+- Live database data via `useIntelEntriesRealtime` and `useIntelConnectionsRealtime` (same as the removed Temporal Grid)
+- Falls back to an empty state message when no intel data exists
+
+### Interactivity
+- Click a card to open the NodeDetailPanel (same as other views)
+- Hover highlights the card and its connected strings, dimming unrelated cards
+- Pan and zoom supported
+- Search bar integration (same `GraphHandle` interface)
+
+## Files Modified
+- **Delete**: `src/components/graph/TemporalGrid.tsx`
+- **Create**: `src/components/graph/ShadowBoard.tsx`
+- **Edit**: `src/pages/Visualize.tsx`
+  - Replace `TemporalGrid` import with `ShadowBoard`
+  - Rename the toggle button from "TEMPORAL GRID" to "SHADOW BOARD"
+  - Swap the `Cpu` icon for a more fitting icon (e.g., `StickyNote` or keep `Cpu`)
 
 ## Technical Details
 
-### Files to modify:
-- `src/components/graph/CircuitBoard.tsx` — Replace force-directed layout with a time-based axis layout; position nodes by `published_at` or `ingested_at` on X-axis and by category on Y-axis
-- `src/pages/Visualize.tsx` — Update the Intel View description/label to reflect its new purpose (e.g., "TIMELINE ANALYSIS" or "TEMPORAL GRID")
-- Connect CircuitBoard to live database data (currently only uses demo data) via the same realtime hooks ConnectionWeb uses
+### ShadowBoard Component
+- Uses `react-force-graph-2d` with `ForceGraph2D` (consistent with ConnectionWeb)
+- Custom `nodeCanvasObject` draws each node as a rectangular "dossier card":
+  - Dark fill with faint border glow matching category color
+  - Pin circle at top-left
+  - Title text, status badge, credibility bar
+- Custom `linkCanvasObject` draws strings:
+  - Slightly curved lines with pin dots at endpoints
+  - Color-coded by connection type
+  - Dashed for contradictions
+- Implements `GraphHandle` interface (`focusNode`, `getNodes`) for search bar compatibility
+- Hover highlighting with neighbor-based dimming (same pattern as ConnectionWeb)
 
-### New UI elements for Intel View:
-- Time range slider (filter visible date range)
-- Axis labels (time on X, category on Y)
-- Density indicators showing clusters of activity
-
-### Estimated scope:
-- Moderate — primarily reworking the CircuitBoard positioning logic and adding time-axis rendering, plus a filter slider component
+### Force Configuration
+- Charge strength: -500 (more spacing for larger card nodes)
+- Link distance: 200 (room for string lines)
+- Collision radius based on card size
 
