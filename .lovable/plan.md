@@ -1,67 +1,59 @@
 
 
-# Add Text Paste Mode to Bridge Import
+# Add Full Realtime Sync Across All Pages
 
-## What This Does
-Adds a second tab to the Bridge Import page so you can paste raw chat transcripts (like your conversations from thewebb.io) and have CLEARFIELD automatically extract evidence objects, intel entries, timeline events, and open questions from them — the same way it does with URLs, but without needing a link.
+## Problem
+Bridge Import writes to `evidence`, `intel_entries`, `timeline_events`, and `unknowns`, but the realtime subscription in `use-intel-realtime.ts` only listens to `intel_entries`, `documents`, and `document_pages`. This means most pages won't reflect new data until you manually refresh or navigate away and back.
 
-## How It Works
-
-1. You go to `/import` and switch to the **TEXT MODE** tab
-2. Paste your chat transcript into the text area
-3. Optionally add a source label (e.g. "thewebb.io - Epstein Saudi Arabia research")
-4. Click **IMPORT and EXTRACT**
-5. The AI reads the transcript, identifies factual claims, entities, dates, and questions, then creates the same database entries as URL mode
+## Solution
+Expand the realtime subscription to cover all tables that Bridge Import (and other ingestion tools) write to, then wire up the affected pages to use realtime-aware queries.
 
 ## Changes
 
-### 1. Bridge Import Page (`src/pages/BridgeImport.tsx`)
+### 1. Expand Realtime Subscription (`src/hooks/use-intel-realtime.ts`)
 
-- Add a Tabs component at the top with two tabs: **URL MODE** and **TEXT MODE**
-- URL mode remains exactly as-is
-- Text mode shows:
-  - A larger textarea (taller, since transcripts are long) for pasting raw chat content
-  - An "Source Label" input field so you can tag the origin (e.g. "thewebb.io chat - Feb 15")
-  - Character count display (max 10,000 characters per submission)
-  - Same "IMPORT and EXTRACT" button
-- Results display is shared between both modes — same success/error cards with evidence titles, intel entries, and open questions
+Add listeners for these additional tables:
+- `evidence`
+- `unknowns`
+- `timeline_events`
+- `contradictions`
+- `claims`
+- `claim_evidence`
+- `context_notes` (if applicable)
 
-### 2. Edge Function (`supabase/functions/bridge-import/index.ts`)
+Each listener invalidates the matching React Query key so the page re-fetches automatically.
 
-- Accept a new optional field in the request body: `texts` — an array of `{ content: string, source_label?: string }`
-- The function accepts either `urls` or `texts` (or both)
-- For text entries:
-  - **Skip** the Perplexity extraction step (content is already provided — no URL to scrape)
-  - Send the raw text directly to the Lovable AI structuring step with the same tool-calling schema
-  - Adjust the AI system prompt to handle chat transcripts: "You are an intelligence analyst structuring a research conversation transcript into evidence objects..."
-  - Store `source_label` as the evidence `author` field and leave `url` as null
-- Same database insertion logic: evidence, intel_entries, timeline_events, unknowns
-- Text content is capped at 10,000 characters per entry to stay within AI context limits
+### 2. Enable Realtime on Tables (SQL Migration)
 
-### 3. No Database Changes
-- Uses the same existing tables: `evidence`, `intel_entries`, `unknowns`, `timeline_events`
-- Evidence from text paste will default to `source_type: "media_transcript"` unless the AI determines otherwise
-- The `url` field on evidence will be null for text-pasted entries
+Run:
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.evidence;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.unknowns;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.timeline_events;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.contradictions;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.claims;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.claim_evidence;
+```
 
-## Technical Details
+### 3. Wire Up Pages to Use Realtime Hook
 
-**Frontend changes (`BridgeImport.tsx`):**
-- Import `Tabs, TabsList, TabsTrigger, TabsContent` from UI components
-- Import `Input` for the source label field
-- Add state: `mode` (tab), `pasteText`, `sourceLabel`
-- New `handleTextImport` function that calls the same edge function with `{ texts: [{ content, source_label }] }`
-- Update `ImportResult` interface: `url` becomes optional (text imports won't have one), add optional `source_label` field
-- Results cards show source label instead of URL for text imports
+For each page that queries these tables, add a call to `useRealtimeInvalidation()` (or a new exported hook) so the query cache is automatically refreshed:
 
-**Edge function changes (`bridge-import/index.ts`):**
-- Destructure `{ urls, texts }` from request body
-- Validate that at least one of them is provided
-- Process text entries in a loop similar to URL entries but skip the Perplexity call
-- The AI prompt for text mode emphasizes extracting multiple evidence objects from a single long transcript when appropriate
-- For the example transcript shared, the AI would likely extract:
-  - Evidence: "Austrian Passport Listing Saudi Arabia Residence" 
-  - Evidence: "2016 Saudi Travel Planning with MBS Invitation"
-  - Intel entries for entities like Epstein, MBS, Rybolovlev
-  - Timeline events for 1980s passport stamps, 2016 visa planning, 2019 arrest
-  - Open questions from the "Dig Deeper" sections
+- **Evidence** (`src/pages/Evidence.tsx`) -- listens for `evidence`, `claim_evidence`
+- **Claims** (`src/pages/Claims.tsx`) -- listens for `claims`, `claim_evidence`, `evidence`
+- **Unknowns** (`src/pages/Unknowns.tsx`) -- listens for `unknowns`
+- **Contradictions** (`src/pages/Contradictions.tsx`) -- listens for `contradictions`, `intel_entries`
+- **Context Notes** (`src/pages/ContextNotes.tsx`) -- listens for `evidence`
+- **Timeline** (`src/pages/Timeline.tsx`) -- already has realtime for `intel_entries`, add `timeline_events`
+- **Dashboard/Index** (`src/pages/Index.tsx`) -- already has realtime stats, will benefit from expanded listeners
+- **Search** (`src/pages/SearchPage.tsx`) -- will pick up new `intel_entries` and `documents` via existing listeners
+- **Graph, Globe, Nexus, Rabbit Hole** -- already wired via `intel_entries` realtime; no changes needed
+- **Bridge Import** (`src/pages/BridgeImport.tsx`) -- no change needed (results come from the API response)
+- **Depth View / Iceberg** (`src/pages/IcebergExplorer.tsx`) -- will check if it queries any of these tables
+
+### 4. No Database Schema Changes
+Only the realtime publication is updated. No new columns or tables.
+
+## Result
+After this change, pasting a chat in Bridge Import will cause every page in the app to automatically refresh its data within seconds -- no manual navigation or refresh needed.
 
