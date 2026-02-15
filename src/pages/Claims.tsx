@@ -131,7 +131,7 @@ const Claims = () => {
   const { data: claimEvidence = [] } = useQuery({
     queryKey: ["claim_evidence"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("claim_evidence").select("*");
+      const { data, error } = await supabase.from("claim_evidence").select("*, evidence(id, title, source_type)");
       if (error) throw error;
       return data;
     },
@@ -246,17 +246,29 @@ const Claims = () => {
                       <span className={`font-mono text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-sm border ${getLabelStyle(claim.label)}`}>
                         {claim.label}
                       </span>
-                      {evCount > 0 && (
+                      {evCount > 0 ? (
                         <span className="font-mono text-[10px] text-success flex items-center gap-1">
                           <Link2 className="h-3 w-3" />{evCount} EVIDENCE
                         </span>
-                      )}
-                      {evCount === 0 && (
+                      ) : (
                         <span className="font-mono text-[10px] text-muted-foreground/50">UNSUPPORTED</span>
                       )}
                     </div>
                     <h3 className="font-mono text-sm text-foreground mb-1">{claim.title}</h3>
                     <p className="font-mono text-xs text-muted-foreground line-clamp-2">{claim.content}</p>
+                    {evCount > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {evLinks.map((link) => {
+                          const ev = (link as any).evidence;
+                          return ev ? (
+                            <span key={link.id} className="inline-flex items-center gap-1 font-mono text-[10px] tracking-wider px-2 py-0.5 rounded-sm border border-success/20 bg-success/5 text-success/80">
+                              <FileText className="h-2.5 w-2.5" />
+                              {ev.title.length > 50 ? ev.title.slice(0, 50) + "…" : ev.title}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
                     <div className="mt-2">
                       <LinkEvidenceDialog claimId={claim.id} existingEvidenceIds={evLinks.map((l) => l.evidence_id)} />
                     </div>
