@@ -226,7 +226,8 @@ const RabbitHolePage = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
-                className="border border-border rounded-sm bg-card/60 backdrop-blur-sm overflow-hidden"
+                className="border border-border rounded-sm backdrop-blur-sm overflow-hidden"
+                style={{ backgroundColor: `hsl(220 25% ${Math.max(3, 8 - entry.layer.depth * 0.5)}% / 0.85)` }}
               >
                 {/* Layer header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/80">
