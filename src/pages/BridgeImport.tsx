@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Import, Link2, Loader2, CheckCircle, AlertTriangle, HelpCircle, FileText } from "lucide-react";
+import { Import, Link2, Loader2, CheckCircle, AlertTriangle, HelpCircle, FileText, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { ImportHistory } from "@/components/bridge/ImportHistory";
 
 interface ImportResult {
   url?: string;
@@ -197,6 +198,16 @@ const BridgeImport = () => {
           ))}
         </div>
       )}
+      {/* Import History */}
+      <div className="mt-8">
+        <h2 className="font-mono text-xs tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+          <History className="h-3.5 w-3.5" />
+          IMPORT HISTORY
+        </h2>
+        <div className="border border-border rounded-sm bg-card p-4">
+          <ImportHistory />
+        </div>
+      </div>
     </div>
   );
 };

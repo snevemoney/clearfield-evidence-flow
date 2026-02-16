@@ -385,6 +385,20 @@ serve(async (req) => {
 
     const results: any[] = [];
 
+    // Create ingestion run record
+    const importQuery = hasUrls
+      ? `URLs: ${urls!.slice(0, 20).join(", ").substring(0, 500)}`
+      : `Text: ${texts![0]?.source_label || "Text import"}`;
+
+    const { data: runRow } = await supabase.from("ingestion_runs").insert({
+      query: importQuery,
+      source_type: "bridge_import",
+      status: "running",
+      entries_found: hasUrls ? urls!.length : texts!.length,
+    }).select("id").single();
+
+    const runId = runRow?.id;
+
     // Process URLs
     if (hasUrls) {
       if (!PERPLEXITY_API_KEY) {
@@ -462,7 +476,17 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ results }), {
+    // Update ingestion run with results
+    const successCount = results.filter((r: any) => r.status === "success").length;
+    if (runId) {
+      await supabase.from("ingestion_runs").update({
+        status: successCount > 0 ? "completed" : "failed",
+        entries_added: successCount,
+        error_message: results.filter((r: any) => r.status === "error").map((r: any) => r.error).join("; ") || null,
+      }).eq("id", runId);
+    }
+
+    return new Response(JSON.stringify({ results, run_id: runId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
