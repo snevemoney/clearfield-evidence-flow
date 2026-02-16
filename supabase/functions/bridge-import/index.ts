@@ -346,7 +346,7 @@ const SYSTEM_PROMPT = `You are an intelligence analyst structuring content for a
 2. **Intel Entries**: Create MULTIPLE entries — one for each significant person, organization, event, or document mentioned. For each, assign real-world lat/lng coordinates for their most relevant location (e.g., a person's headquarters, an event's city, an organization's HQ). Use precise coordinates.
 3. **Claims**: Every distinct factual assertion. Label each as alleged/unsupported/disputed/verified/retracted.
 4. **Connections**: Map relationships between intel entries (financial, organizational, personal, legal, temporal, evidentiary). Use indices into the intel_entries array.
-5. **Timeline Events**: Every datable event with ISO dates. Use "main" branch for well-sourced events, "shadow" for speculative ones.
+5. **Timeline Events**: Every datable event with ISO dates. IMPORTANT: Use "main" branch for well-documented, publicly acknowledged events. Use "shadow" branch for: speculative connections, unconfirmed meetings, alleged cover-ups, suspicious timing coincidences, whistleblower claims, leaked information, and any event that mainstream sources dispute or ignore. Aim for at least 30-50% of events to be "shadow" branch — the hidden narrative is as important as the public one.
 6. **Topic**: The overarching subject.
 7. **Open Questions**: Gaps, missing documents, unknowns.
 
