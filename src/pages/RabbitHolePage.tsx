@@ -2,8 +2,8 @@ import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Rabbit, ChevronDown, Loader2, AlertTriangle, BookOpen, HelpCircle, MessageSquare, GitFork, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { invokeFunction } from "@/lib/invoke";
 
 interface Fork {
   label: string;
@@ -54,15 +54,11 @@ const RabbitHolePage = () => {
   const generateLayer = useCallback(async (topic: string, parentLayer?: Layer, direction?: string) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("rabbit-hole", {
-        body: { topic, parentLayer, direction },
+      const data = await invokeFunction<{ layer: Layer }>("rabbit-hole", {
+        topic,
+        parentLayer,
+        direction,
       });
-
-      if (error) throw error;
-      if (data?.error) {
-        toast({ title: "AI Error", description: data.error, variant: "destructive" });
-        return;
-      }
 
       const layer = data.layer as Layer;
       if (parentLayer && direction) {

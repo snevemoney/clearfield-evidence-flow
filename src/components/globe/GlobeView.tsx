@@ -25,6 +25,7 @@ export function GlobeView({ locations, arcs, heatmapPoints, onLocationClick, fil
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [countries, setCountries] = useState<{ features: any[] }>({ features: [] });
   const [hoveredCountry, setHoveredCountry] = useState<any>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
 
   // Load country polygons
   useEffect(() => {
@@ -34,7 +35,10 @@ export function GlobeView({ locations, arcs, heatmapPoints, onLocationClick, fil
         const geo = feature(topology, topology.objects.countries) as any;
         setCountries(geo);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("GeoJSON load failed", err);
+        setGeoError(err instanceof Error ? err.message : "Failed to load country outlines");
+      });
   }, []);
 
   // Resize observer
@@ -145,6 +149,11 @@ export function GlobeView({ locations, arcs, heatmapPoints, onLocationClick, fil
 
   return (
     <div ref={containerRef} className="w-full h-full absolute inset-0" style={{ zIndex: 1 }}>
+      {geoError && (
+        <div className="absolute top-3 left-3 z-20 border border-destructive/30 bg-background/80 px-2 py-1 rounded-sm">
+          <p className="font-mono text-[10px] text-destructive" role="alert">{geoError}</p>
+        </div>
+      )}
       <Globe
         ref={globeRef}
         width={dimensions.width}
