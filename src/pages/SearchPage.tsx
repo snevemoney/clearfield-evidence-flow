@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { SearchResults } from "@/components/search/SearchResults";
 import { PageViewerModal } from "@/components/search/PageViewerModal";
 import { useDocumentSearch, useArchiveStats, type FilterType, type DocSearchResult } from "@/hooks/use-document-search";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { invokeFunction } from "@/lib/invoke";
+import { QueryError } from "@/components/QueryError";
 
 const filters: { key: FilterType; label: string }[] = [
   { key: "all", label: "ALL RESULTS" },
@@ -29,8 +30,8 @@ const SearchPage = () => {
     page: number;
   } | null>(null);
 
-  const { docResults, intelResults, isLoading, debouncedQuery } = useDocumentSearch(query, filter);
-  const { data: stats } = useArchiveStats();
+  const { docResults, intelResults, isLoading, isError, error, debouncedQuery } = useDocumentSearch(query, filter);
+  const { data: stats, isError: statsError, error: statsErr, isLoading: statsLoading } = useArchiveStats();
 
   const handleDocClick = (result: DocSearchResult) => {
     setViewerDoc({
@@ -45,11 +46,7 @@ const SearchPage = () => {
   const handleSeedArchive = async () => {
     setSeeding(true);
     try {
-      const { data, error } = await supabase.functions.invoke("seed-document-archive", {
-        body: {},
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const data = await invokeFunction<{ summary?: string }>("seed-document-archive", {});
       toast({
         title: "Archive Seeded",
         description: data?.summary || "Documents have been indexed.",
@@ -99,6 +96,13 @@ const SearchPage = () => {
           {stats?.redactedPages ?? "—"} REDACTED
         </span>
       </div>
+
+      {(isError || statsError) && (
+        <QueryError message={(error || statsErr) instanceof Error ? (error || statsErr)!.message : "Search failed."} />
+      )}
+      {statsLoading && !stats && (
+        <p className="font-mono text-[10px] text-muted-foreground mb-3 animate-pulse">LOADING ARCHIVE STATS...</p>
+      )}
 
       {/* Search bar */}
       <div className="max-w-2xl mb-4">

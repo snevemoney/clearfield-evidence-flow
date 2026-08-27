@@ -1,21 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders } from "../_shared/http.ts";
+import { requireCaller, serviceClient } from "../_shared/auth.ts";
+import { fetchWithRetry } from "../_shared/retry.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const supabase = serviceClient();
 
   try {
-    const { topic = "Jeffrey Epstein court documents" } = await req.json();
+    const auth = await requireCaller(req, supabase, { allowCron: true });
+    if (!auth.ok) return auth.response;
+
+    let topic = "Jeffrey Epstein court documents";
+    try {
+      const body = await req.json();
+      if (typeof body?.topic === "string" && body.topic.trim()) topic = body.topic.trim();
+    } catch (e) {
+      console.error("ingest-documents: invalid JSON body", e);
+    }
 
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     if (!PERPLEXITY_API_KEY) throw new Error("PERPLEXITY_API_KEY is not configured");
@@ -30,7 +33,7 @@ serve(async (req) => {
     }).select().single();
 
     // Use Perplexity with academic search for documents
-    const perplexityRes = await fetch("https://api.perplexity.ai/chat/completions", {
+    const perplexityRes = await fetchWithRetry("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
@@ -51,7 +54,7 @@ serve(async (req) => {
     const rawContent = perplexityData.choices?.[0]?.message?.content || "";
     const citations = perplexityData.citations || [];
 
-    const structureRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const structureRes = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -118,25 +121,27 @@ serve(async (req) => {
       entries = JSON.parse(toolCall.function.arguments).entries || [];
     }
 
+    const rows = (entries as any[]).filter((entry) => entry?.title).map((entry) => ({
+      title: entry.title,
+      description: entry.description,
+      category: entry.category,
+      lat: entry.lat || null,
+      lng: entry.lng || null,
+      source_url: entry.source_url || citations[0] || null,
+      source_type: "court_filing",
+      credibility_score: entry.credibility_score || 70,
+      fact_check_status: entry.fact_check_status || "verified",
+      tags: entry.tags || [],
+      related_entities: entry.related_entities || [],
+      raw_content: rawContent.substring(0, 5000),
+      ai_summary: entry.ai_summary,
+      published_at: entry.published_at || null,
+    }));
     let addedCount = 0;
-    for (const entry of entries) {
-      const { error } = await supabase.from("intel_entries").insert({
-        title: entry.title,
-        description: entry.description,
-        category: entry.category,
-        lat: entry.lat || null,
-        lng: entry.lng || null,
-        source_url: entry.source_url || citations[0] || null,
-        source_type: "court_filing",
-        credibility_score: entry.credibility_score || 70,
-        fact_check_status: entry.fact_check_status || "verified",
-        tags: entry.tags || [],
-        related_entities: entry.related_entities || [],
-        raw_content: rawContent.substring(0, 5000),
-        ai_summary: entry.ai_summary,
-        published_at: entry.published_at || null,
-      });
-      if (!error) addedCount++;
+    if (rows.length) {
+      const { data: inserted, error } = await supabase.from("intel_entries").insert(rows).select("id");
+      if (error) console.error("Insert error:", error);
+      addedCount = inserted?.length || 0;
     }
 
     if (run) {

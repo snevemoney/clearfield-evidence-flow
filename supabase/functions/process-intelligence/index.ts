@@ -1,24 +1,21 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders } from "../_shared/http.ts";
+import { requireCaller, serviceClient } from "../_shared/auth.ts";
+import { fetchWithRetry } from "../_shared/retry.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const supabase = serviceClient();
 
   try {
+    const auth = await requireCaller(req, supabase, { allowCron: true });
+    if (!auth.ok) return auth.response;
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Get unprocessed entries (no connections yet)
+    // Latest entries (connection filter is applied after fetch via existingConns)
     const { data: entries, error: fetchErr } = await supabase
       .from("intel_entries")
       .select("id, title, description, category, related_entities, tags, lat, lng")
@@ -35,7 +32,8 @@ serve(async (req) => {
     // Get existing connections to avoid duplicates
     const { data: existingConns } = await supabase
       .from("intel_connections")
-      .select("source_entry_id, target_entry_id");
+      .select("source_entry_id, target_entry_id")
+      .limit(2000);
 
     const connSet = new Set(
       (existingConns || []).map(c => `${c.source_entry_id}-${c.target_entry_id}`)
@@ -50,7 +48,7 @@ serve(async (req) => {
       tags: e.tags,
     }));
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -115,26 +113,26 @@ serve(async (req) => {
 
     // Validate and insert connections
     const validIds = new Set(entries.map(e => e.id));
-    let addedConns = 0;
-
+    const rows = [];
     for (const conn of connections) {
       if (!validIds.has(conn.source_id) || !validIds.has(conn.target_id)) continue;
       if (conn.source_id === conn.target_id) continue;
       const key = `${conn.source_id}-${conn.target_id}`;
       if (connSet.has(key)) continue;
-
-      const { error } = await supabase.from("intel_connections").insert({
+      connSet.add(key);
+      rows.push({
         source_entry_id: conn.source_id,
         target_entry_id: conn.target_id,
         connection_type: conn.connection_type,
         description: conn.description,
         evidence_strength: conn.evidence_strength,
       });
-
-      if (!error) {
-        addedConns++;
-        connSet.add(key);
-      }
+    }
+    let addedConns = 0;
+    if (rows.length) {
+      const { data: inserted, error } = await supabase.from("intel_connections").insert(rows).select("id");
+      if (error) console.error("Insert error:", error);
+      addedConns = inserted?.length || 0;
     }
 
     return new Response(JSON.stringify({

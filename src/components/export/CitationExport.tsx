@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { LIST_LIMIT } from "@/lib/constants";
 
 interface CitationExportProps {
   type: "evidence" | "claims";
@@ -16,20 +17,20 @@ function formatAPA(item: { title: string; author?: string | null; published_date
 }
 
 export function CitationExport({ type }: CitationExportProps) {
-  const { data: evidence = [] } = useQuery({
+  const { data: evidence = [], isError: evidenceError, error: evidenceErr, isLoading: evidenceLoading } = useQuery({
     queryKey: ["evidence"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("evidence").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("evidence").select("*").order("created_at", { ascending: false }).limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
     enabled: type === "evidence",
   });
 
-  const { data: claims = [] } = useQuery({
+  const { data: claims = [], isError: claimsError, error: claimsErr, isLoading: claimsLoading } = useQuery({
     queryKey: ["claims"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("claims").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("claims").select("*").order("created_at", { ascending: false }).limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
@@ -37,6 +38,14 @@ export function CitationExport({ type }: CitationExportProps) {
   });
 
   const exportCitations = () => {
+    if (evidenceError || claimsError) {
+      toast({
+        title: "Export failed",
+        description: (evidenceErr || claimsErr) instanceof Error ? (evidenceErr || claimsErr)!.message : "Could not load records.",
+        variant: "destructive",
+      });
+      return;
+    }
     let text = `CLEARFIELD — ${type.toUpperCase()} EXPORT\nGenerated: ${new Date().toISOString()}\n${"=".repeat(60)}\n\n`;
 
     if (type === "evidence") {
@@ -52,7 +61,7 @@ export function CitationExport({ type }: CitationExportProps) {
     } else {
       text += "CLAIMS REGISTER\n\n";
       claims.forEach((c, i) => {
-        text += `${i + 1}. [${c.label.toUpperCase()}] ${c.title}\n   ${c.content}\n   Status: ${c.status} | Filed: ${new Date(c.created_at).toLocaleDateString()}\n\n`;
+        text += `${i + 1}. [${c.label.toUpperCase()}] ${c.title}\n   ${c.content}\n   Status: ${c.status} | Filed: ${c.created_at}\n\n`;
       });
     }
 
@@ -68,6 +77,7 @@ export function CitationExport({ type }: CitationExportProps) {
 
   const itemCount = type === "evidence" ? evidence.length : claims.length;
 
+  if (evidenceLoading || claimsLoading) return null;
   if (itemCount === 0) return null;
 
   return (

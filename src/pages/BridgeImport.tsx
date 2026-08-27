@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { ImportHistory } from "@/components/bridge/ImportHistory";
+import { invokeFunction } from "@/lib/invoke";
 
 interface ImportResult {
   url?: string;
@@ -44,11 +44,7 @@ const BridgeImport = () => {
     setResults([]);
 
     try {
-      const { data, error } = await supabase.functions.invoke("bridge-import", {
-        body: { urls },
-      });
-
-      if (error) throw error;
+      const data = await invokeFunction<{ results?: ImportResult[] }>("bridge-import", { urls });
       setResults(data.results || []);
 
       const successCount = data.results?.filter((r: ImportResult) => r.status === "success").length || 0;
@@ -75,11 +71,9 @@ const BridgeImport = () => {
     setResults([]);
 
     try {
-      const { data, error } = await supabase.functions.invoke("bridge-import", {
-        body: { texts: [{ content: trimmed, source_label: sourceLabel.trim() || undefined }] },
+      const data = await invokeFunction<{ results?: ImportResult[] }>("bridge-import", {
+        texts: [{ content: trimmed, source_label: sourceLabel.trim() || undefined }],
       });
-
-      if (error) throw error;
       setResults(data.results || []);
 
       const successCount = data.results?.filter((r: ImportResult) => r.status === "success").length || 0;

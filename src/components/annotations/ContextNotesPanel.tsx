@@ -2,6 +2,7 @@ import { useState } from "react";
 import { MessageSquare, Plus, ThumbsUp, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,8 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
+import { LIST_LIMIT } from "@/lib/constants";
+import { parseContextNoteInsert, NOTE_TARGET_TYPES } from "@/lib/validation";
+import { QueryError } from "@/components/QueryError";
 
-const TARGET_TYPES = ["claim", "evidence", "intel_entry"];
+const TARGET_TYPES = [...NOTE_TARGET_TYPES];
 
 export function ContextNotesPanel() {
   useRealtimeInvalidation();
@@ -22,19 +26,19 @@ export function ContextNotesPanel() {
   const [sortBy, setSortBy] = useState<"date" | "usefulness">("date");
   const queryClient = useQueryClient();
 
-  const { data: notes = [], isLoading } = useQuery({
+  const { data: notes = [], isLoading, isError, error } = useQuery({
     queryKey: ["context_notes"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("context_notes").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("context_notes").select("*").order("created_at", { ascending: false }).limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
   });
 
-  const { data: evidenceList = [] } = useQuery({
+  const { data: evidenceList = [], isError: evidenceError, error: evidenceErr, isLoading: evidenceLoading } = useQuery({
     queryKey: ["evidence_list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("evidence").select("id, title");
+      const { data, error } = await supabase.from("evidence").select("id, title").limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
@@ -42,10 +46,13 @@ export function ContextNotesPanel() {
 
   const createNote = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("context_notes").insert({
-        content, target_type: targetType, target_id: targetId || "00000000-0000-0000-0000-000000000000",
+      const payload = parseContextNoteInsert({
+        content,
+        target_type: targetType,
+        target_id: targetId,
         evidence_id: evidenceId || null,
       });
+      const { error } = await supabase.from("context_notes").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -75,14 +82,20 @@ export function ContextNotesPanel() {
             <div className="space-y-4">
               <div><Label className="font-mono text-xs tracking-wider">NOTE CONTENT *</Label><Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Your context note — must cite evidence..." className="font-mono text-sm mt-1 min-h-[120px]" /></div>
               <div><Label className="font-mono text-xs tracking-wider">TARGET TYPE</Label><Select value={targetType} onValueChange={setTargetType}><SelectTrigger className="font-mono text-xs mt-1"><SelectValue /></SelectTrigger><SelectContent>{TARGET_TYPES.map((t) => <SelectItem key={t} value={t} className="font-mono text-xs uppercase">{t.replace("_", " ")}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label className="font-mono text-xs tracking-wider">TARGET ID (UUID)</Label><Input value={targetId} onChange={(e) => setTargetId(e.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" className="font-mono text-xs mt-1" /></div>
               <div><Label className="font-mono text-xs tracking-wider">CITED EVIDENCE</Label><Select value={evidenceId} onValueChange={setEvidenceId}><SelectTrigger className="font-mono text-xs mt-1"><SelectValue placeholder="Select evidence to cite..." /></SelectTrigger><SelectContent>{evidenceList.map((e) => <SelectItem key={e.id} value={e.id} className="font-mono text-xs">{e.title}</SelectItem>)}</SelectContent></Select></div>
-              <Button onClick={() => createNote.mutate()} disabled={!content || createNote.isPending} className="w-full font-mono text-xs tracking-wider">{createNote.isPending ? "SAVING..." : "SAVE NOTE"}</Button>
+              <Button onClick={() => createNote.mutate()} disabled={!content || !targetId || createNote.isPending} className="w-full font-mono text-xs tracking-wider">{createNote.isPending ? "SAVING..." : "SAVE NOTE"}</Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
       <p className="font-mono text-[10px] text-muted-foreground/50 mb-6">Notes must cite evidence. Rated on usefulness — not agreement. Minority views persist.</p>
+
+      {(isError || evidenceError) && (
+        <QueryError message={(error || evidenceErr) instanceof Error ? (error || evidenceErr)!.message : "Failed to load notes."} />
+      )}
+      {evidenceLoading && <p className="font-mono text-[10px] text-muted-foreground mb-2 animate-pulse">LOADING EVIDENCE LIST...</p>}
 
       {isLoading ? (
         <div className="flex items-center justify-center min-h-[300px]"><p className="font-mono text-xs text-muted-foreground animate-pulse">LOADING NOTES...</p></div>

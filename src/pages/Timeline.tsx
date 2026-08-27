@@ -5,6 +5,8 @@ import { timelineData, icebergData, type TimelineEvent, type IcebergItem } from 
 import { useIntelEntriesRealtime as useIntelEntries, useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { LIST_LIMIT } from "@/lib/constants";
+import { QueryError } from "@/components/QueryError";
 
 type TimelineMode = "river" | "depth";
 
@@ -42,7 +44,7 @@ function useTimelineEvents() {
   return useQuery({
     queryKey: ["timeline_events"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("timeline_events").select("*").order("event_date", { ascending: true });
+      const { data, error } = await supabase.from("timeline_events").select("*").order("event_date", { ascending: true }).limit(LIST_LIMIT);
       if (error) throw error;
       return data || [];
     },
@@ -54,7 +56,7 @@ function useClaims() {
   return useQuery({
     queryKey: ["claims_with_evidence"],
     queryFn: async () => {
-      const { data: claims, error } = await supabase.from("claims").select("*, claim_evidence(evidence_id)").order("created_at", { ascending: false });
+      const { data: claims, error } = await supabase.from("claims").select("*, claim_evidence(evidence_id)").order("created_at", { ascending: false }).limit(LIST_LIMIT);
       if (error) throw error;
       return claims || [];
     },
@@ -66,13 +68,13 @@ const Timeline = () => {
   const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState<TimelineEvent | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { data: intelEntries = [] } = useIntelEntries();
-  const { data: dbTimelineEvents = [] } = useTimelineEvents();
+  const { data: intelEntries = [], isError: intelError, error: intelErr } = useIntelEntries();
+  const { data: dbTimelineEvents = [], isError: timelineError, error: timelineErr, isLoading: timelineLoading } = useTimelineEvents();
 
   // Depth view state
   const [expandedDepth, setExpandedDepth] = useState<string | null>("surface");
   const [selectedIcebergItem, setSelectedIcebergItem] = useState<IcebergItem | null>(null);
-  const { data: dbClaims = [] } = useClaims();
+  const { data: dbClaims = [], isError: claimsError, error: claimsErr } = useClaims();
 
   // River data
   const intelTimelineEvents: TimelineEvent[] = useMemo(() => {
@@ -160,6 +162,15 @@ const Timeline = () => {
           )}
         </div>
       </div>
+
+      {(intelError || timelineError || claimsError) && (
+        <div className="px-6">
+          <QueryError message={(intelErr || timelineErr || claimsErr)?.message} />
+        </div>
+      )}
+      {timelineLoading && mode === "river" && (
+        <p className="px-6 font-mono text-xs text-muted-foreground animate-pulse">LOADING TIMELINE...</p>
+      )}
 
       {/* Content */}
       {mode === "river" ? (

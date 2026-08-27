@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ExternalLink, FileText, AlertTriangle, Orbit, Rabbit, Globe } from "lucide-react";
+import { X, FileText, AlertTriangle, Orbit, Rabbit, Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { demoLinks, EDGE_COLORS, NODE_COLORS, demoNodes, type GraphNode } from "@/lib/demo-graph-data";
 

@@ -1,10 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders } from "../_shared/http.ts";
+import { requireCaller, serviceClient } from "../_shared/auth.ts";
+import { fetchWithRetry } from "../_shared/retry.ts";
 
 const DEFAULT_TOPICS = [
   "Jeffrey Epstein court filings case numbers 2019 2020 document titles",
@@ -30,7 +27,7 @@ interface DocumentEntry {
 }
 
 async function fetchFromPerplexity(topic: string, apiKey: string): Promise<string> {
-  const res = await fetch("https://api.perplexity.ai/chat/completions", {
+  const res = await fetchWithRetry("https://api.perplexity.ai/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -61,7 +58,7 @@ async function fetchFromPerplexity(topic: string, apiKey: string): Promise<strin
 }
 
 async function extractStructuredDocs(rawText: string, topic: string, apiKey: string): Promise<DocumentEntry[]> {
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const res = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -151,12 +148,16 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = serviceClient();
+    const auth = await requireCaller(req, supabase);
+    if (!auth.ok) return auth.response;
 
     let body: { topics?: string[] } = {};
-    try { body = await req.json(); } catch { /* empty body is fine */ }
+    try {
+      body = await req.json();
+    } catch (e) {
+      console.info("seed-document-archive: empty or invalid JSON body, using defaults", e);
+    }
 
     const topics = body.topics?.length ? body.topics : DEFAULT_TOPICS;
     const results: { topic: string; documents: number; pages: number }[] = [];

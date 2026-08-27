@@ -38,7 +38,7 @@ export function PageViewerModal({
   initialPage,
   searchQuery,
 }: PageViewerModalProps) {
-  const { data: pages = [], isLoading } = useDocumentPages(open ? documentId : null);
+  const { data: pages = [], isLoading, isError, error } = useDocumentPages(open ? documentId : null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
   useEffect(() => {
@@ -73,6 +73,11 @@ export function PageViewerModal({
           </DialogDescription>
         </DialogHeader>
 
+        {isError && (
+          <p className="font-mono text-xs text-destructive px-1" role="alert">
+            {error instanceof Error ? error.message : "Failed to load pages."}
+          </p>
+        )}
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center p-8">
             <p className="font-mono text-xs text-muted-foreground animate-pulse">LOADING PAGES...</p>
