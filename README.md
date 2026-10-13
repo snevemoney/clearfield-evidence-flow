@@ -1,3 +1,5 @@
+> **Work in progress.** This project is still being built and is not ready for real use yet.
+
 <!-- HYGIENE: paste at top of README.md -->
 # Clearfield
 
