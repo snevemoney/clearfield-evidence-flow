@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function ImportHistory() {
-  const { data: runs, isLoading } = useQuery({
+  const { data: runs, isLoading, isError, error } = useQuery({
     queryKey: ["ingestion_runs", "bridge_import"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -19,6 +19,16 @@ export function ImportHistory() {
     },
     refetchInterval: 10000,
   });
+
+  if (isError) {
+    return (
+      <div className="text-center py-8">
+        <p className="font-mono text-xs text-destructive tracking-wider" role="alert">
+          {error instanceof Error ? error.message : "FAILED TO LOAD IMPORT HISTORY"}
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

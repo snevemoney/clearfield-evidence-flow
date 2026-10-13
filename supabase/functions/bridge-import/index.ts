@@ -1,10 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, json } from "../_shared/http.ts";
+import { requireCaller, serviceClient } from "../_shared/auth.ts";
+import { fetchWithRetry } from "../_shared/retry.ts";
 
 const STRUCTURE_TOOL = {
   type: "function" as const,
@@ -117,6 +115,36 @@ const STRUCTURE_TOOL = {
 };
 
 const VALID_SOURCE_TYPES = ["news", "court_filing", "government_doc", "academic_paper", "media_transcript", "dataset", "historical_record"];
+const VALID_CREDIBILITY = ["primary", "secondary", "original", "syndicated", "on_record", "anonymous"];
+
+function toIsoDate(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  if (/^\d{4}-\d{2}$/.test(trimmed)) return `${trimmed}-01`;
+  if (/^\d{4}$/.test(trimmed)) return `${trimmed}-01-01`;
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function mapClaimLabel(label: unknown): "user_claim" | "opinion" | "interpretation" {
+  if (label === "opinion" || label === "interpretation" || label === "user_claim") return label;
+  if (label === "disputed") return "interpretation";
+  return "user_claim";
+}
+
+function mapClaimStatus(status: unknown): "supported" | "disputed" | "unsupported" | "under_review" {
+  if (status === "supported" || status === "disputed" || status === "unsupported" || status === "under_review") return status;
+  if (status === "confirmed") return "supported";
+  if (status === "debunked") return "disputed";
+  return "unsupported";
+}
+
+function mapCredibility(value: unknown): string {
+  if (typeof value === "string" && VALID_CREDIBILITY.includes(value)) return value;
+  return "secondary";
+}
 
 async function insertStructured(
   supabase: ReturnType<typeof createClient>,
@@ -133,9 +161,9 @@ async function insertStructured(
     source_type: sourceType,
     author: structured.evidence.author || source.source_label || null,
     excerpt: structured.evidence.excerpt || null,
-    credibility: structured.evidence.credibility || "secondary",
+    credibility: mapCredibility(structured.evidence.credibility),
     url: source.url || null,
-    published_date: structured.evidence.published_date || null,
+    published_date: toIsoDate(structured.evidence.published_date),
   }).select("id").single();
 
   if (evErr) throw new Error(evErr.message);
@@ -161,146 +189,131 @@ async function insertStructured(
     }
   }
 
-  // 3. Insert intel entries (multiple)
+  // 3. Insert intel entries (batched)
   const intelEntries = Array.isArray(structured.intel_entries) ? structured.intel_entries : [structured.intel_entries || structured.intel_entry];
-  const intelIds: string[] = [];
+  const intelRows = intelEntries.filter((entry: any) => entry?.title).map((entry: any) => ({
+    title: entry.title,
+    description: entry.description || null,
+    category: entry.category || "evidence",
+    source_type: sourceType,
+    source_url: source.url || null,
+    fact_check_status: entry.fact_check_status || "unverified",
+    credibility_score: entry.credibility_score || 50,
+    tags: entry.tags || [],
+    related_entities: entry.related_entities || [],
+    lat: entry.lat || null,
+    lng: entry.lng || null,
+    raw_content: source.raw_content.substring(0, 5000),
+  }));
+  const { data: intelInserted } = intelRows.length
+    ? await supabase.from("intel_entries").insert(intelRows).select("id")
+    : { data: [] as { id: string }[] };
+  const intelIds = (intelInserted || []).map((r) => r.id);
 
-  for (const entry of intelEntries) {
-    if (!entry?.title) continue;
-    const { data: intelRow } = await supabase.from("intel_entries").insert({
-      title: entry.title,
-      description: entry.description || null,
-      category: entry.category || "evidence",
-      source_type: sourceType,
-      source_url: source.url || null,
-      fact_check_status: entry.fact_check_status || "unverified",
-      credibility_score: entry.credibility_score || 50,
-      tags: entry.tags || [],
-      related_entities: entry.related_entities || [],
-      lat: entry.lat || null,
-      lng: entry.lng || null,
-      raw_content: source.raw_content.substring(0, 5000),
-    }).select("id").single();
-    intelIds.push(intelRow?.id || "");
-  }
-
-  // 4. Insert intel connections
+  // 4. Insert intel connections (batched)
   if (structured.connections?.length && intelIds.length > 1) {
-    for (const conn of structured.connections) {
+    const connRows = structured.connections.map((conn: any) => {
       const srcId = intelIds[conn.source_index];
       const tgtId = intelIds[conn.target_index];
-      if (srcId && tgtId && srcId !== tgtId) {
-        await supabase.from("intel_connections").insert({
-          source_entry_id: srcId,
-          target_entry_id: tgtId,
-          connection_type: conn.connection_type || "evidentiary",
-          evidence_strength: conn.evidence_strength || "moderate",
-          description: conn.description || null,
-        });
-      }
-    }
+      if (!srcId || !tgtId || srcId === tgtId) return null;
+      return {
+        source_entry_id: srcId,
+        target_entry_id: tgtId,
+        connection_type: conn.connection_type || "evidentiary",
+        evidence_strength: conn.evidence_strength || "moderate",
+        description: conn.description || null,
+      };
+    }).filter(Boolean);
+    if (connRows.length) await supabase.from("intel_connections").insert(connRows);
   }
 
-  // 5. Insert claims and link to evidence
-  const claimsInserted: string[] = [];
-  if (structured.claims?.length) {
-    for (const claim of structured.claims) {
-      if (!claim?.title) continue;
-      const { data: claimRow } = await supabase.from("claims").insert({
-        title: claim.title,
-        content: claim.content || claim.title,
-        label: claim.label || "alleged",
-        status: claim.status || "open",
-        topic_id: topicId,
-      }).select("id").single();
-
-      if (claimRow?.id) {
-        claimsInserted.push(claim.title);
-        // Link claim to evidence
-        await supabase.from("claim_evidence").insert({
-          claim_id: claimRow.id,
-          evidence_id: evidenceRow.id,
-        });
-      }
-    }
+  // 5. Insert claims and link to evidence (batched)
+  const claimRows = (structured.claims || []).filter((claim: any) => claim?.title).map((claim: any) => ({
+    title: claim.title,
+    content: claim.content || claim.title,
+    label: mapClaimLabel(claim.label),
+    status: mapClaimStatus(claim.status),
+    topic_id: topicId,
+  }));
+  const { data: claimInserted } = claimRows.length
+    ? await supabase.from("claims").insert(claimRows).select("id, title")
+    : { data: [] as { id: string; title: string }[] };
+  const claimsInserted = (claimInserted || []).map((c) => c.title);
+  if (claimInserted?.length) {
+    await supabase.from("claim_evidence").insert(
+      claimInserted.map((c) => ({ claim_id: c.id, evidence_id: evidenceRow.id })),
+    );
   }
 
-  // 6. Insert timeline events
-  const timelineIds: string[] = [];
-  if (structured.timeline_events?.length) {
-    for (const te of structured.timeline_events) {
-      if (!te?.title || !te?.event_date) continue;
-      const { data: tlRow } = await supabase.from("timeline_events").insert({
-        title: te.title,
-        event_date: te.event_date,
-        description: te.description || null,
-        event_type: te.event_type || "unknown",
-        branch: te.branch || "main",
+  // 6. Insert timeline events (batched)
+  const timelineRows = (structured.timeline_events || []).map((te: any) => {
+    const eventDate = toIsoDate(te?.event_date);
+    if (!te?.title || !eventDate) return null;
+    return {
+      title: te.title,
+      event_date: eventDate,
+      description: te.description || null,
+      event_type: te.event_type || "unknown",
+      branch: te.branch || "main",
+      evidence_id: evidenceRow.id,
+      topic_id: topicId,
+    };
+  }).filter(Boolean);
+  const { data: timelineInserted } = timelineRows.length
+    ? await supabase.from("timeline_events").insert(timelineRows).select("id")
+    : { data: [] as { id: string }[] };
+  const timelineIds = (timelineInserted || []).map((r) => r.id);
+
+  // 7. Insert graph nodes + connections (batched)
+  const graphRows = intelEntries.filter((entry: any) => entry?.title).map((entry: any, i: number) => {
+    const nodeType = entry.category === "person" ? "person"
+      : entry.category === "organization" ? "institution"
+      : entry.category === "event" ? "event"
+      : entry.category === "claim" ? "claim"
+      : "document";
+    return {
+      label: entry.title.length > 30 ? entry.title.slice(0, 30) + "…" : entry.title,
+      node_type: nodeType,
+      description: entry.description || null,
+      ref_id: intelIds[i] || null,
+      topic_id: topicId,
+    };
+  });
+  const { data: graphInserted } = graphRows.length
+    ? await supabase.from("graph_nodes").insert(graphRows).select("id")
+    : { data: [] as { id: string }[] };
+  const graphNodeIds = (graphInserted || []).map((r) => r.id);
+
+  if (structured.connections?.length && graphNodeIds.length) {
+    const edgeRows = structured.connections.map((conn: any) => {
+      const srcNodeId = graphNodeIds[conn.source_index];
+      const tgtNodeId = graphNodeIds[conn.target_index];
+      if (!srcNodeId || !tgtNodeId || srcNodeId === tgtNodeId) return null;
+      const edgeType = conn.connection_type === "financial" ? "financial"
+        : conn.connection_type === "contradiction" ? "contradiction"
+        : conn.connection_type === "temporal" ? "temporal_overlap"
+        : "citation";
+      return {
+        source_node_id: srcNodeId,
+        target_node_id: tgtNodeId,
+        edge_type: edgeType,
+        description: conn.description || null,
         evidence_id: evidenceRow.id,
-        topic_id: topicId,
-      }).select("id").single();
-      if (tlRow?.id) timelineIds.push(tlRow.id);
-    }
+      };
+    }).filter(Boolean);
+    if (edgeRows.length) await supabase.from("graph_connections").insert(edgeRows);
   }
 
-  // 7. Insert graph nodes + connections
-  const graphNodeIds: string[] = [];
-  if (intelIds.length > 0) {
-    for (let i = 0; i < intelEntries.length; i++) {
-      const entry = intelEntries[i];
-      if (!entry?.title) continue;
-      const nodeType = entry.category === "person" ? "person"
-        : entry.category === "organization" ? "institution"
-        : entry.category === "event" ? "event"
-        : entry.category === "claim" ? "claim"
-        : "document";
-
-      const { data: nodeRow } = await supabase.from("graph_nodes").insert({
-        label: entry.title.length > 30 ? entry.title.slice(0, 30) + "…" : entry.title,
-        node_type: nodeType,
-        description: entry.description || null,
-        ref_id: intelIds[i] || null,
-        topic_id: topicId,
-      }).select("id").single();
-      graphNodeIds.push(nodeRow?.id || "");
-    }
-
-    // Graph connections from structured connections
-    if (structured.connections?.length) {
-      for (const conn of structured.connections) {
-        const srcNodeId = graphNodeIds[conn.source_index];
-        const tgtNodeId = graphNodeIds[conn.target_index];
-        if (srcNodeId && tgtNodeId && srcNodeId !== tgtNodeId) {
-          const edgeType = conn.connection_type === "financial" ? "financial"
-            : conn.connection_type === "contradiction" ? "contradiction"
-            : conn.connection_type === "temporal" ? "temporal_overlap"
-            : "citation";
-          await supabase.from("graph_connections").insert({
-            source_node_id: srcNodeId,
-            target_node_id: tgtNodeId,
-            edge_type: edgeType,
-            description: conn.description || null,
-            evidence_id: evidenceRow.id,
-          });
-        }
-      }
-    }
-  }
-
-  // 8. Insert unknowns
-  const unknownsInserted: string[] = [];
-  if (structured.open_questions?.length) {
-    for (const q of structured.open_questions) {
-      await supabase.from("unknowns").insert({
-        category: q.category || "open_question",
-        title: q.title,
-        description: q.description || null,
-        source_intel_id: intelIds[0] || null,
-        generated_by: "bridge_import",
-      });
-      unknownsInserted.push(q.title);
-    }
-  }
+  // 8. Insert unknowns (batched)
+  const unknownRows = (structured.open_questions || []).filter((q: any) => q?.title).map((q: any) => ({
+    category: q.category || "open_question",
+    title: q.title,
+    description: q.description || null,
+    source_intel_id: intelIds[0] || null,
+    generated_by: "bridge_import",
+  }));
+  if (unknownRows.length) await supabase.from("unknowns").insert(unknownRows);
+  const unknownsInserted = unknownRows.map((q: { title: string }) => q.title);
 
   return {
     evidence_id: evidenceRow.id,
@@ -320,7 +333,7 @@ async function structureWithAI(
   systemPrompt: string,
   userContent: string,
 ) {
-  const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const aiRes = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -356,23 +369,30 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const body = await req.json();
-    const urls: string[] | undefined = body.urls;
-    const texts: { content: string; source_label?: string }[] | undefined = body.texts;
+    const supabase = serviceClient();
+    const auth = await requireCaller(req, supabase);
+    if (!auth.ok) return auth.response;
 
-    const hasUrls = Array.isArray(urls) && urls.length > 0;
-    const hasTexts = Array.isArray(texts) && texts.length > 0;
+    let body: { urls?: unknown; texts?: unknown } = {};
+    try {
+      body = await req.json();
+    } catch (e) {
+      console.error("bridge-import: invalid JSON body", e);
+      return json({ error: "Invalid JSON body" }, 400);
+    }
+    const urls = Array.isArray(body.urls) ? body.urls.filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u)).slice(0, 20) : [];
+    const texts = Array.isArray(body.texts)
+      ? body.texts.filter((t): t is { content: string; source_label?: string } =>
+        !!t && typeof t === "object" && typeof (t as { content?: unknown }).content === "string"
+      ).slice(0, 5)
+      : [];
+
+    const hasUrls = urls.length > 0;
+    const hasTexts = texts.length > 0;
 
     if (!hasUrls && !hasTexts) {
-      return new Response(JSON.stringify({ error: "Provide urls or texts array" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "Provide urls or texts array" }, 400);
     }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -409,7 +429,7 @@ serve(async (req) => {
 
       for (const url of urls!.slice(0, 20)) {
         try {
-          const perplexityRes = await fetch("https://api.perplexity.ai/chat/completions", {
+          const perplexityRes = await fetchWithRetry("https://api.perplexity.ai/chat/completions", {
             method: "POST",
             headers: { Authorization: `Bearer ${PERPLEXITY_API_KEY}`, "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -486,9 +506,7 @@ serve(async (req) => {
       }).eq("id", runId);
     }
 
-    return new Response(JSON.stringify({ results, run_id: runId }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ success: true, results, run_id: runId });
   } catch (e) {
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

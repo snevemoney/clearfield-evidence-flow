@@ -22,8 +22,8 @@ export const ConnectionWeb = forwardRef<GraphHandle, ConnectionWebProps>(functio
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [stabilized, setStabilized] = useState(false);
-  const { data: intelEntries = [] } = useIntelEntries();
-  const { data: intelConnections = [] } = useIntelConnections();
+  const { data: intelEntries = [], isError: entriesError, isLoading: entriesLoading } = useIntelEntries();
+  const { data: intelConnections = [], isError: linksError, isLoading: linksLoading } = useIntelConnections();
 
   useEffect(() => {
     const updateSize = () => {
@@ -288,7 +288,13 @@ export const ConnectionWeb = forwardRef<GraphHandle, ConnectionWebProps>(functio
   }, [isLinkHighlighted]);
 
   return (
-    <div ref={containerRef} className="w-full h-full">
+    <div ref={containerRef} className="w-full h-full relative">
+      {(entriesError || linksError) && (
+        <p className="absolute top-2 left-2 z-20 font-mono text-[10px] text-destructive" role="alert">Failed to load graph intel.</p>
+      )}
+      {(entriesLoading || linksLoading) && !entriesError && !linksError && (
+        <p className="absolute top-2 left-2 z-20 font-mono text-[10px] text-muted-foreground animate-pulse">LOADING GRAPH...</p>
+      )}
       <ForceGraph2D
         ref={graphRef}
         graphData={graphData}

@@ -10,6 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
+import { LIST_LIMIT } from "@/lib/constants";
+import { parseUnknownInsert } from "@/lib/validation";
+import { QueryError } from "@/components/QueryError";
 
 const CATEGORIES = [
   { value: "known_fact", label: "KNOWN FACTS", color: "text-success border-success/30 bg-success/10" },
@@ -36,10 +39,10 @@ export function UnknownsPanel() {
   const [filterCat, setFilterCat] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: unknowns = [], isLoading } = useQuery({
+  const { data: unknowns = [], isLoading, isError, error } = useQuery({
     queryKey: ["unknowns"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("unknowns").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("unknowns").select("*").order("created_at", { ascending: false }).limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
@@ -47,7 +50,13 @@ export function UnknownsPanel() {
 
   const createUnknown = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("unknowns").insert({ title, description: description || null, category, generated_by: "user" });
+      const payload = parseUnknownInsert({
+        title,
+        description: description || null,
+        category,
+        generated_by: "user",
+      });
+      const { error } = await supabase.from("unknowns").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -87,6 +96,8 @@ export function UnknownsPanel() {
           </button>
         ))}
       </div>
+
+      {isError && <QueryError message={error instanceof Error ? error.message : "Failed to load unknowns."} />}
 
       {isLoading ? (
         <div className="flex items-center justify-center min-h-[200px]"><p className="font-mono text-xs text-muted-foreground animate-pulse">LOADING...</p></div>

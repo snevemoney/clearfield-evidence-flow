@@ -6,25 +6,28 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
+import { LIST_LIMIT } from "@/lib/constants";
+import { invokeFunction } from "@/lib/invoke";
+import { QueryError } from "@/components/QueryError";
 
 export function ContradictionsPanel() {
   useRealtimeInvalidation();
   const [scanning, setScanning] = useState(false);
   const [topicFilter, setTopicFilter] = useState("");
 
-  const { data: contradictions = [], isLoading, refetch } = useQuery({
+  const { data: contradictions = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["contradictions"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("contradictions").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("contradictions").select("*").order("created_at", { ascending: false }).limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
   });
 
-  const { data: entries = [] } = useQuery({
+  const { data: entries = [], isError: entriesError, error: entriesErr } = useQuery({
     queryKey: ["intel_entries"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("intel_entries").select("id, title, source_type, source_url");
+      const { data, error } = await supabase.from("intel_entries").select("id, title, source_type, source_url").limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
@@ -35,8 +38,10 @@ export function ContradictionsPanel() {
   const runScan = async () => {
     setScanning(true);
     try {
-      const { data, error } = await supabase.functions.invoke("find-contradictions", { body: topicFilter ? { topic: topicFilter } : {} });
-      if (error) throw error;
+      const data = await invokeFunction<{ contradictions?: unknown[] }>(
+        "find-contradictions",
+        topicFilter ? { topic: topicFilter } : {},
+      );
       const count = data?.contradictions?.length || 0;
       toast({ title: "Scan complete", description: `${count} contradiction${count !== 1 ? "s" : ""} detected.` });
       refetch();
@@ -61,6 +66,10 @@ export function ContradictionsPanel() {
         </Button>
         <span className="font-mono text-[10px] text-muted-foreground border border-border px-2 py-0.5 rounded-sm">{contradictions.length} FOUND</span>
       </div>
+
+      {(isError || entriesError) && (
+        <QueryError message={(error || entriesErr) instanceof Error ? (error || entriesErr)!.message : "Failed to load contradictions."} />
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center min-h-[300px]"><p className="font-mono text-xs text-muted-foreground animate-pulse">LOADING...</p></div>

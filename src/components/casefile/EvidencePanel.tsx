@@ -11,9 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { CitationExport } from "@/components/export/CitationExport";
 import { useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
+import { LIST_LIMIT } from "@/lib/constants";
+import { parseEvidenceInsert, EVIDENCE_SOURCE_TYPES, EVIDENCE_CREDIBILITY } from "@/lib/validation";
+import { QueryError } from "@/components/QueryError";
 
-const SOURCE_TYPES = ["news", "court_filing", "testimony", "document", "social_media", "academic", "other"];
-const CREDIBILITY = ["primary", "secondary", "tertiary"];
+const SOURCE_TYPES = [...EVIDENCE_SOURCE_TYPES];
+const CREDIBILITY = [...EVIDENCE_CREDIBILITY];
 
 export function EvidencePanel() {
   useRealtimeInvalidation();
@@ -28,19 +31,19 @@ export function EvidencePanel() {
   const [filterType, setFilterType] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: evidence = [], isLoading } = useQuery({
+  const { data: evidence = [], isLoading, isError, error } = useQuery({
     queryKey: ["evidence"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("evidence").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("evidence").select("*").order("created_at", { ascending: false }).limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
   });
 
-  const { data: claimEvidence = [] } = useQuery({
+  const { data: claimEvidence = [], isError: linksError, error: linksErr } = useQuery({
     queryKey: ["claim_evidence"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("claim_evidence").select("*");
+      const { data, error } = await supabase.from("claim_evidence").select("*").limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
@@ -48,10 +51,11 @@ export function EvidencePanel() {
 
   const createEvidence = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("evidence").insert({
+      const payload = parseEvidenceInsert({
         title, source_type: sourceType, author: author || null, excerpt: excerpt || null,
         credibility, url: url || null, published_date: publishedDate || null,
       });
+      const { error } = await supabase.from("evidence").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -101,6 +105,10 @@ export function EvidencePanel() {
           <button key={t} onClick={() => setFilterType(t)} className={`font-mono text-[10px] tracking-wider px-3 py-1 rounded-sm border transition-all uppercase ${filterType === t ? "border-success text-success bg-success/10" : "border-border text-muted-foreground hover:text-foreground"}`}>{t.replace("_", " ")}</button>
         ))}
       </div>
+
+      {(isError || linksError) && (
+        <QueryError message={(error || linksErr) instanceof Error ? (error || linksErr)!.message : "Failed to load evidence."} />
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center min-h-[300px]"><p className="font-mono text-xs text-muted-foreground animate-pulse">LOADING EVIDENCE...</p></div>

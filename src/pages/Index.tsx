@@ -3,10 +3,11 @@ import { motion } from "framer-motion";
 import { Shield, FileText, Archive, HelpCircle, Activity, AlertTriangle, Eye, Users, CheckCircle, AlertOctagon, CircleDot } from "lucide-react";
 import { useIntelStatsRealtime as useIntelStats } from "@/hooks/use-intel-realtime";
 import { IntelDetailModal } from "@/components/intel/IntelDetailModal";
+import { QueryError } from "@/components/QueryError";
 import type { IntelEntry } from "@/hooks/use-intel-data";
 
 const Index = () => {
-  const { stats, entries, isLoading } = useIntelStats();
+  const { stats, entries, isLoading, isError, error } = useIntelStats();
   const [selectedEntry, setSelectedEntry] = useState<IntelEntry | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -51,6 +52,8 @@ const Index = () => {
           The platform remains neutral. Users speak. Truth emerges through evidence and open challenge.
         </p>
       </motion.div>
+
+      {isError && <QueryError message={error instanceof Error ? error.message : "Failed to load intel."} />}
 
       {/* Stats Grid */}
       <motion.div

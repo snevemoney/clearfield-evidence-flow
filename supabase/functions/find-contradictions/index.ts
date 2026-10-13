@@ -1,21 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, json } from "../_shared/http.ts";
+import { requireCaller, serviceClient } from "../_shared/auth.ts";
+import { fetchWithRetry } from "../_shared/retry.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { topic } = await req.json().catch(() => ({}));
+    const supabase = serviceClient();
+    const auth = await requireCaller(req, supabase);
+    if (!auth.ok) return auth.response;
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    let topic: string | undefined;
+    try {
+      const body = await req.json();
+      if (typeof body?.topic === "string" && body.topic.trim()) topic = body.topic.trim();
+    } catch (e) {
+      console.error("find-contradictions: invalid JSON body", e);
+    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -46,7 +48,7 @@ serve(async (req) => {
       content_preview: (e.raw_content || e.ai_summary || e.description || "").substring(0, 300),
     }));
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -96,35 +98,35 @@ serve(async (req) => {
 
     const { contradictions } = JSON.parse(toolCall.function.arguments);
     const validEntryIds = new Set(entries.map((e: any) => e.id));
-    const inserted: any[] = [];
+    const contradictionRows = (contradictions || []).filter((c: any) =>
+      validEntryIds.has(c.source_a_id) && validEntryIds.has(c.source_b_id)
+    ).map((c: any) => ({
+      source_a_id: c.source_a_id,
+      source_b_id: c.source_b_id,
+      topic: c.topic,
+      summary_a: c.summary_a,
+      summary_b: c.summary_b,
+      detected_by: "ai",
+    }));
 
-    for (const c of contradictions) {
-      if (!validEntryIds.has(c.source_a_id) || !validEntryIds.has(c.source_b_id)) continue;
-
-      const { data, error: insertErr } = await supabase.from("contradictions").insert({
-        source_a_id: c.source_a_id,
-        source_b_id: c.source_b_id,
-        topic: c.topic,
-        summary_a: c.summary_a,
-        summary_b: c.summary_b,
-        detected_by: "ai",
-      }).select().single();
-
-      if (!insertErr && data) {
-        inserted.push(data);
-        // Also create an unknown for the disputed claim
-        await supabase.from("unknowns").insert({
+    let inserted: any[] = [];
+    if (contradictionRows.length) {
+      const { data, error: insertErr } = await supabase.from("contradictions").insert(contradictionRows).select();
+      if (insertErr) console.error("contradictions insert:", insertErr);
+      inserted = data || [];
+      if (inserted.length) {
+        const unknownRows = inserted.map((c) => ({
           category: "disputed_claim",
           title: `Contradiction: ${c.topic}`,
           description: `Source A claims: ${c.summary_a}\nSource B claims: ${c.summary_b}`,
           generated_by: "ai",
-        });
+        }));
+        const { error: unknownErr } = await supabase.from("unknowns").insert(unknownRows);
+        if (unknownErr) console.error("unknowns insert:", unknownErr);
       }
     }
 
-    return new Response(JSON.stringify({ contradictions: inserted }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ success: true, contradictions: inserted });
   } catch (e) {
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -1,11 +1,24 @@
 project_id = "sijocrtrjpbkwjbihgok"
 
+# User-invoked functions: gateway JWT required. Handlers also call auth.getUser().
 [functions.globe-query]
-verify_jwt = false
+verify_jwt = true
 
 [functions.rabbit-hole]
-verify_jwt = false
+verify_jwt = true
 
+[functions.bridge-import]
+verify_jwt = true
+
+[functions.find-contradictions]
+verify_jwt = true
+
+[functions.seed-document-archive]
+verify_jwt = true
+
+# Cron / batch jobs: gateway JWT off so a documented CRON_SECRET can be sent
+# as x-cron-secret. Handlers fail closed if neither a valid user JWT nor a
+# matching CRON_SECRET is present. Set CRON_SECRET in the function secrets.
 [functions.ingest-news]
 verify_jwt = false
 
@@ -19,13 +32,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.fact-check]
-verify_jwt = false
-
-[functions.seed-document-archive]
-verify_jwt = false
-
-[functions.bridge-import]
-verify_jwt = false
-
-[functions.find-contradictions]
 verify_jwt = false

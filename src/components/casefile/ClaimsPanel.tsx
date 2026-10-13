@@ -11,14 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { CitationExport } from "@/components/export/CitationExport";
 import { useRealtimeInvalidation } from "@/hooks/use-intel-realtime";
+import { LIST_LIMIT } from "@/lib/constants";
+import { parseClaimInsert, parseClaimEvidenceInsert, CLAIM_LABELS } from "@/lib/validation";
+import { QueryError } from "@/components/QueryError";
 
 const LABELS = [
-  { value: "alleged", color: "text-yellow-400 border-yellow-400/30 bg-yellow-400/10" },
-  { value: "unsupported", color: "text-muted-foreground border-border bg-muted" },
-  { value: "disputed", color: "text-destructive border-destructive/30 bg-destructive/10" },
-  { value: "verified", color: "text-success border-success/30 bg-success/10" },
-  { value: "retracted", color: "text-red-500 border-red-500/30 bg-red-500/10" },
-];
+  { value: "user_claim", color: "text-yellow-400 border-yellow-400/30 bg-yellow-400/10" },
+  { value: "opinion", color: "text-muted-foreground border-border bg-muted" },
+  { value: "interpretation", color: "text-destructive border-destructive/30 bg-destructive/10" },
+] as const;
 
 function getLabelStyle(label: string) {
   return LABELS.find((l) => l.value === label)?.color || "text-muted-foreground border-border bg-muted";
@@ -29,10 +30,10 @@ const LinkEvidenceDialog = ({ claimId, existingEvidenceIds }: { claimId: string;
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
 
-  const { data: allEvidence = [] } = useQuery({
+  const { data: allEvidence = [], isError: evidenceError, error: evidenceErr } = useQuery({
     queryKey: ["evidence"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("evidence").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("evidence").select("*").order("created_at", { ascending: false }).limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
@@ -40,7 +41,8 @@ const LinkEvidenceDialog = ({ claimId, existingEvidenceIds }: { claimId: string;
 
   const linkEvidence = useMutation({
     mutationFn: async (evidenceId: string) => {
-      const { error } = await supabase.from("claim_evidence").insert({ claim_id: claimId, evidence_id: evidenceId });
+      const payload = parseClaimEvidenceInsert({ claim_id: claimId, evidence_id: evidenceId });
+      const { error } = await supabase.from("claim_evidence").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -107,23 +109,23 @@ export function ClaimsPanel() {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [label, setLabel] = useState("alleged");
+  const [label, setLabel] = useState<(typeof CLAIM_LABELS)[number]>("user_claim");
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: claims = [], isLoading } = useQuery({
+  const { data: claims = [], isLoading, isError, error } = useQuery({
     queryKey: ["claims"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("claims").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("claims").select("*").order("created_at", { ascending: false }).limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
   });
 
-  const { data: claimEvidence = [] } = useQuery({
+  const { data: claimEvidence = [], isError: linksError, error: linksErr } = useQuery({
     queryKey: ["claim_evidence"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("claim_evidence").select("*, evidence(id, title, source_type)");
+      const { data, error } = await supabase.from("claim_evidence").select("*, evidence(id, title, source_type)").limit(LIST_LIMIT);
       if (error) throw error;
       return data;
     },
@@ -131,12 +133,18 @@ export function ClaimsPanel() {
 
   const createClaim = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("claims").insert({ title, content, label, status: label === "verified" ? "supported" : "unsupported" });
+      const payload = parseClaimInsert({
+        title,
+        content,
+        label,
+        status: "unsupported",
+      });
+      const { error } = await supabase.from("claims").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["claims"] });
-      setOpen(false); setTitle(""); setContent(""); setLabel("alleged");
+      setOpen(false); setTitle(""); setContent(""); setLabel("user_claim");
       toast({ title: "Claim filed", description: "New claim has been recorded." });
     },
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -165,7 +173,7 @@ export function ClaimsPanel() {
                 <div><Label className="font-mono text-xs tracking-wider">CONTENT</Label><Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Describe the claim in detail..." className="font-mono text-sm mt-1 min-h-[120px]" /></div>
                 <div>
                   <Label className="font-mono text-xs tracking-wider">LABEL</Label>
-                  <Select value={label} onValueChange={setLabel}><SelectTrigger className="font-mono text-xs mt-1"><SelectValue /></SelectTrigger><SelectContent>{LABELS.map((l) => (<SelectItem key={l.value} value={l.value} className="font-mono text-xs uppercase">{l.value}</SelectItem>))}</SelectContent></Select>
+                  <Select value={label} onValueChange={(v) => setLabel(v as (typeof CLAIM_LABELS)[number])}><SelectTrigger className="font-mono text-xs mt-1"><SelectValue /></SelectTrigger><SelectContent>{LABELS.map((l) => (<SelectItem key={l.value} value={l.value} className="font-mono text-xs uppercase">{l.value}</SelectItem>))}</SelectContent></Select>
                 </div>
                 <Button onClick={() => createClaim.mutate()} disabled={!title || !content || createClaim.isPending} className="w-full font-mono text-xs tracking-wider">{createClaim.isPending ? "FILING..." : "FILE CLAIM"}</Button>
               </div>
@@ -180,6 +188,10 @@ export function ClaimsPanel() {
           <button key={l.value} onClick={() => setFilterLabel(l.value)} className={`font-mono text-[10px] tracking-wider px-3 py-1 rounded-sm border transition-all uppercase ${filterLabel === l.value ? l.color : "border-border text-muted-foreground hover:text-foreground"}`}>{l.value}</button>
         ))}
       </div>
+
+      {(isError || linksError) && (
+        <QueryError message={(error || linksErr) instanceof Error ? (error || linksErr)!.message : "Failed to load claims."} />
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center min-h-[300px]"><p className="font-mono text-xs text-muted-foreground animate-pulse">LOADING CLAIMS...</p></div>

@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { LIST_LIMIT } from "@/lib/constants";
+import { safeIlikePattern } from "@/lib/search";
 
 export type DocSearchResult = {
   page_id: string;
@@ -52,10 +54,12 @@ export function useDocumentSearch(query: string, filter: FilterType = "all") {
     queryKey: ["search_intel", debouncedQuery],
     queryFn: async () => {
       if (!debouncedQuery.trim()) return [];
+      const pattern = safeIlikePattern(debouncedQuery);
+      if (!pattern) return [];
       const { data, error } = await supabase
         .from("intel_entries")
         .select("id, title, description, category, fact_check_status, source_type")
-        .or(`title.ilike.%${debouncedQuery}%,description.ilike.%${debouncedQuery}%`)
+        .or(`title.ilike.%${pattern}%,description.ilike.%${pattern}%`)
         .limit(50);
       if (error) throw error;
       return (data || []) as IntelSearchResult[];
@@ -71,6 +75,8 @@ export function useDocumentSearch(query: string, filter: FilterType = "all") {
     docResults: filteredDocs,
     intelResults: filter === "documents" ? [] : intelResults.data || [],
     isLoading: docResults.isLoading || intelResults.isLoading,
+    isError: docResults.isError || intelResults.isError,
+    error: docResults.error || intelResults.error,
     debouncedQuery,
   };
 }
@@ -84,6 +90,8 @@ export function useArchiveStats() {
         supabase.from("document_pages").select("id", { count: "exact", head: true }),
         supabase.from("document_pages").select("id", { count: "exact", head: true }).eq("has_redactions", true),
       ]);
+      const firstError = docsRes.error || pagesRes.error || redactedRes.error;
+      if (firstError) throw firstError;
       return {
         totalDocuments: docsRes.count || 0,
         totalPages: pagesRes.count || 0,
@@ -102,7 +110,8 @@ export function useDocumentPages(documentId: string | null) {
         .from("document_pages")
         .select("*")
         .eq("document_id", documentId)
-        .order("page_number", { ascending: true });
+        .order("page_number", { ascending: true })
+        .limit(LIST_LIMIT);
       if (error) throw error;
       return data || [];
     },

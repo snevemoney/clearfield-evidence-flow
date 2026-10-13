@@ -49,8 +49,8 @@ export const ShadowBoard = forwardRef<GraphHandle, ShadowBoardProps>(function Sh
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [stabilized, setStabilized] = useState(false);
 
-  const { data: intelEntries = [] } = useIntelEntries();
-  const { data: intelConnections = [] } = useIntelConnections();
+  const { data: intelEntries = [], isError: entriesError, isLoading: entriesLoading } = useIntelEntries();
+  const { data: intelConnections = [], isError: linksError, isLoading: linksLoading } = useIntelConnections();
 
   // Resize
   useEffect(() => {
@@ -345,6 +345,12 @@ export const ShadowBoard = forwardRef<GraphHandle, ShadowBoardProps>(function Sh
 
   return (
     <div ref={containerRef} className="w-full h-full relative" style={{ background: "radial-gradient(ellipse at 50% 50%, hsl(220 20% 12%) 0%, hsl(220 25% 7%) 100%)" }}>
+      {(entriesError || linksError) && (
+        <p className="absolute top-2 left-2 z-20 font-mono text-[10px] text-destructive" role="alert">Failed to load board intel.</p>
+      )}
+      {(entriesLoading || linksLoading) && !entriesError && !linksError && (
+        <p className="absolute top-2 left-2 z-20 font-mono text-[10px] text-muted-foreground animate-pulse">LOADING BOARD...</p>
+      )}
       {isEmpty ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
           <span className="font-mono text-sm text-muted-foreground/40 tracking-widest">NO INTEL DATA</span>

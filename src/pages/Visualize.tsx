@@ -19,8 +19,9 @@ import { NexusDetailPanel } from "@/components/nexus/NexusDetailPanel";
 import { NexusSearchBar } from "@/components/nexus/NexusSearchBar";
 import { getTopicUniverse, getAllTopicIds, getTopicLabel, RING_COLORS, RING_LABELS, type NexusNode, type TopicUniverse, addDynamicUniverse } from "@/lib/demo-nexus-data";
 import { useIntelEntriesRealtime as useIntelEntries } from "@/hooks/use-intel-realtime";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { invokeFunction } from "@/lib/invoke";
+import { QueryError } from "@/components/QueryError";
 
 type VisualizeMode = "graph" | "globe" | "nexus";
 
@@ -69,7 +70,7 @@ const Visualize = () => {
   const [nexusHistory, setNexusHistory] = useState<string[]>([]);
   const [selectedNexusNode, setSelectedNexusNode] = useState<NexusNode | null>(null);
 
-  const { data: intelEntries = [] } = useIntelEntries();
+  const { data: intelEntries = [], isError: intelError, error: intelErr, isLoading: intelLoading } = useIntelEntries();
 
   // Handle URL params
   useEffect(() => {
@@ -139,10 +140,16 @@ const Visualize = () => {
   const handleGlobeQuery = useCallback(async (query: string) => {
     setIsQuerying(true); setQueryResult(null); setCameraTarget(null);
     try {
-      const { data, error } = await supabase.functions.invoke("globe-query", { body: { query } });
-      if (error) { toast({ title: "Query failed", description: error.message, variant: "destructive" }); return; }
-      if (data?.error) { toast({ title: "AI Error", description: data.error, variant: "destructive" }); return; }
-      setQueryResult({ query, summary: data.summary || "Results generated.", mode: data.mode || "points", locations: data.locations || [], heatmapPoints: data.heatmapPoints || [], arcs: data.arcs || [] });
+      const data = await invokeFunction<{
+        summary?: string;
+        mode?: string;
+        locations?: AiQueryResult["locations"];
+        heatmapPoints?: AiQueryResult["heatmapPoints"];
+        arcs?: AiQueryResult["arcs"];
+        camera?: { lat: number; lng: number; altitude: number };
+      }>("globe-query", { query });
+      const mode = data.mode === "heatmap" || data.mode === "arcs" || data.mode === "mixed" ? data.mode : "points";
+      setQueryResult({ query, summary: data.summary || "Results generated.", mode, locations: data.locations || [], heatmapPoints: data.heatmapPoints || [], arcs: data.arcs || [] });
       if (data.camera) setCameraTarget(data.camera);
     } catch { toast({ title: "Error", description: "Failed to query the globe AI.", variant: "destructive" }); }
     finally { setIsQuerying(false); }
@@ -159,6 +166,12 @@ const Visualize = () => {
 
   return (
     <div className="h-screen flex flex-col grid-bg">
+      {(intelError || intelLoading) && (
+        <div className="px-6 pt-2">
+          {intelError && <QueryError message={intelErr instanceof Error ? intelErr.message : "Failed to load intel."} />}
+          {intelLoading && !intelError && <p className="font-mono text-[10px] text-muted-foreground animate-pulse">LOADING INTEL...</p>}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-card/80 backdrop-blur-sm z-10">
         <div className="flex items-center gap-3">

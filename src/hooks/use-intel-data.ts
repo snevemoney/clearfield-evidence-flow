@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { LIST_LIMIT } from "@/lib/constants";
 
 export interface IntelEntry {
   id: string;
@@ -36,7 +37,8 @@ export function useIntelEntries() {
       const { data, error } = await supabase
         .from("intel_entries")
         .select("*")
-        .order("ingested_at", { ascending: false });
+        .order("ingested_at", { ascending: false })
+        .limit(LIST_LIMIT);
       if (error) throw error;
       return (data || []) as IntelEntry[];
     },
@@ -49,7 +51,8 @@ export function useIntelConnections() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("intel_connections")
-        .select("*");
+        .select("*")
+        .limit(LIST_LIMIT);
       if (error) throw error;
       return (data || []) as IntelConnection[];
     },

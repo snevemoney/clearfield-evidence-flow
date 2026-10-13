@@ -1,21 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders } from "../_shared/http.ts";
+import { requireCaller, serviceClient } from "../_shared/auth.ts";
+import { fetchWithRetry } from "../_shared/retry.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const supabase = serviceClient();
 
   try {
-    const { entry_id } = await req.json();
+    const auth = await requireCaller(req, supabase, { allowCron: true });
+    if (!auth.ok) return auth.response;
+
+    let entry_id: string | undefined;
+    try {
+      const body = await req.json();
+      entry_id = typeof body?.entry_id === "string" ? body.entry_id : undefined;
+    } catch (e) {
+      console.error("fact-check: invalid JSON body", e);
+    }
 
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     if (!PERPLEXITY_API_KEY) throw new Error("PERPLEXITY_API_KEY is not configured");
@@ -49,7 +52,7 @@ serve(async (req) => {
 
     for (const entry of entriesToCheck) {
       // Search for corroborating/contradicting sources
-      const searchRes = await fetch("https://api.perplexity.ai/chat/completions", {
+      const searchRes = await fetchWithRetry("https://api.perplexity.ai/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
@@ -69,7 +72,7 @@ serve(async (req) => {
       const evidence = searchData.choices?.[0]?.message?.content || "";
 
       // Use AI to assess
-      const assessRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const assessRes = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
